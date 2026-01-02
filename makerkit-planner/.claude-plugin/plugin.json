@@ -1,9 +1,9 @@
 {
-  "name": "makerkit-dev",
+  "name": "makerkit-planner",
   "version": "1.0.0",
   "description": "Blueprint generator for MakerKit projects. Uses MCP tools to analyze codebase and generate Ralph-ready architecture blueprints.",
   "author": {
-    "name": "YogaBuddhi"
+    "name": "Membrana Estudio"
   },
   "commands": ["./commands/makerkit-blueprint.md"],
   "agents": [

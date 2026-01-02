@@ -8,14 +8,14 @@
   },
   "plugins": [
     {
-      "name": "ideacion",
-      "source": "./ideacion",
-      "description": "Transforma ideas en specs de producto mediante entrevistas profundas",
+      "name": "product-spec",
+      "source": "./product-spec",
+      "description": "Transform informal ideas into product specs through deep interview sessions",
       "version": "1.1.0"
     },
     {
-      "name": "makerkit-dev",
-      "source": "./makerkit-dev",
+      "name": "makerkit-planner",
+      "source": "./makerkit-planner",
       "description": "Blueprint generator for MakerKit projects",
       "version": "1.0.0"
     }

@@ -1,0 +1,10 @@
+{
+  "name": "product-spec",
+  "version": "1.1.0",
+  "description": "Transform informal ideas into product specs through deep interview sessions",
+  "author": {
+    "name": "Membrana Estudio"
+  },
+  "keywords": ["product", "spec", "brainstorming", "discovery", "interview"],
+  "commands": ["./commands/ideacion.md"]
+}

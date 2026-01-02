@@ -1,0 +1,283 @@
+{
+  "base_url": "https://makerkit.dev/docs/next-supabase-turbo",
+  "total_pages": 150,
+  "extracted_at": "2026-01-01",
+  "sections": [
+    {
+      "name": "Installation",
+      "slug": "installation",
+      "pages": [
+        {"title": "Introduction", "path": "/installation/introduction"},
+        {"title": "Technical Details", "path": "/installation/technical-details"},
+        {"title": "Conventions", "path": "/installation/conventions"},
+        {"title": "Clone the Repository", "path": "/installation/clone-repository"},
+        {"title": "Running the Project", "path": "/installation/running-project"},
+        {"title": "Common Commands", "path": "/installation/common-commands"},
+        {"title": "Updating the Codebase", "path": "/installation/updating-codebase"},
+        {"title": "Navigating the Codebase", "path": "/installation/navigating-codebase"},
+        {"title": "Walkthrough", "path": "/installation/functional-walkthrough"},
+        {"title": "Migrating from v1", "path": "/installation/migration-from-makerkit-v1"},
+        {"title": "Updating to Next.js 15", "path": "/installation/update-nextjs15"},
+        {"title": "Updating to Tailwind CSS v4", "path": "/installation/update-tailwindcss-v4"},
+        {"title": "Code Health and Testing", "path": "/installation/code-health"},
+        {"title": "LLMs rules", "path": "/installation/llms"},
+        {"title": "MCP Server", "path": "/installation/mcp"},
+        {"title": "FAQ", "path": "/installation/faq"}
+      ]
+    },
+    {
+      "name": "Configuration",
+      "slug": "configuration",
+      "pages": [
+        {"title": "Environment Variables", "path": "/configuration/environment-variables"},
+        {"title": "Application Configuration", "path": "/configuration/application-configuration"},
+        {"title": "Authentication Configuration", "path": "/configuration/authentication-configuration"},
+        {"title": "Paths Configuration", "path": "/configuration/paths-configuration"},
+        {"title": "Feature Flags", "path": "/configuration/feature-flags-configuration"},
+        {"title": "Account Navigation Configuration", "path": "/configuration/personal-account-sidebar-configuration"},
+        {"title": "Team Account Navigation Configuration", "path": "/configuration/team-account-sidebar-configuration"}
+      ]
+    },
+    {
+      "name": "Customization",
+      "slug": "customization",
+      "pages": [
+        {"title": "Tailwind CSS", "path": "/customization/tailwind-css"},
+        {"title": "Updating the theme", "path": "/customization/theme"},
+        {"title": "Updating the Logo", "path": "/customization/logo"},
+        {"title": "Updating Fonts", "path": "/customization/fonts"},
+        {"title": "Layout Style", "path": "/customization/layout-style"}
+      ]
+    },
+    {
+      "name": "Development",
+      "slug": "development",
+      "pages": [
+        {"title": "Getting Started with Development", "path": "/development/approaching-local-development"},
+        {"title": "Database Architecture", "path": "/development/database-architecture"},
+        {"title": "Migrations", "path": "/development/migrations"},
+        {"title": "Extending the DB Schema", "path": "/development/database-schema"},
+        {"title": "Database Functions", "path": "/development/database-functions"},
+        {"title": "Loading data from the DB", "path": "/development/loading-data-from-database"},
+        {"title": "Writing data to Database", "path": "/development/writing-data-to-database"},
+        {"title": "Database Webhooks", "path": "/development/database-webhooks"},
+        {"title": "RBAC: Roles and Permissions", "path": "/development/permissions-and-roles"},
+        {"title": "Marketing Pages", "path": "/development/marketing-pages"},
+        {"title": "Legal Pages", "path": "/development/legal-pages"},
+        {"title": "External Marketing Website", "path": "/development/external-marketing-website"},
+        {"title": "SEO", "path": "/development/seo"},
+        {"title": "Application tests (E2E)", "path": "/development/application-tests"},
+        {"title": "Database tests", "path": "/development/database-tests"},
+        {"title": "Adding a Turborepo app", "path": "/development/adding-turborepo-app"},
+        {"title": "Adding a Turborepo package", "path": "/development/adding-turborepo-package"}
+      ]
+    },
+    {
+      "name": "API",
+      "slug": "api",
+      "pages": [
+        {"title": "Account API", "path": "/api/account-api"},
+        {"title": "Team Account API", "path": "/api/team-account-api"},
+        {"title": "Authentication API", "path": "/api/authentication-api"},
+        {"title": "User Workspace API", "path": "/api/user-workspace-api"},
+        {"title": "Team Workspace API", "path": "/api/account-workspace-api"},
+        {"title": "OTP API", "path": "/api/otp-api"},
+        {"title": "Registry API", "path": "/api/registry-api"},
+        {"title": "Feature Policies API", "path": "/api/policies-api"}
+      ]
+    },
+    {
+      "name": "Data Fetching",
+      "slug": "data-fetching",
+      "pages": [
+        {"title": "Supabase Clients", "path": "/data-fetching/supabase-clients"},
+        {"title": "Server Actions", "path": "/data-fetching/server-actions"},
+        {"title": "Route Handlers", "path": "/data-fetching/route-handlers"},
+        {"title": "Server Components", "path": "/data-fetching/server-components"},
+        {"title": "React Query", "path": "/data-fetching/react-query"},
+        {"title": "CSRF Protection", "path": "/data-fetching/csrf-protection"},
+        {"title": "Captcha Protection", "path": "/data-fetching/captcha-protection"}
+      ]
+    },
+    {
+      "name": "Billing",
+      "slug": "billing",
+      "pages": [
+        {"title": "How Billing Works", "path": "/billing/overview"},
+        {"title": "Billing Schema", "path": "/billing/billing-schema"},
+        {"title": "Stripe", "path": "/billing/stripe"},
+        {"title": "Lemon Squeezy", "path": "/billing/lemon-squeezy"},
+        {"title": "Paddle", "path": "/billing/paddle"},
+        {"title": "Metered Usage", "path": "/billing/metered-usage"},
+        {"title": "Per Seat Billing", "path": "/billing/per-seat-billing"},
+        {"title": "Credits Based Billing", "path": "/billing/credit-based-billing"},
+        {"title": "One Off Payments", "path": "/billing/one-off-payments"},
+        {"title": "Handling Webhooks", "path": "/billing/billing-webhooks"},
+        {"title": "Billing API", "path": "/billing/billing-api"},
+        {"title": "Custom Integration", "path": "/billing/custom-integration"}
+      ]
+    },
+    {
+      "name": "Content",
+      "slug": "content",
+      "pages": [
+        {"title": "CMS", "path": "/content/cms"},
+        {"title": "Keystatic", "path": "/content/keystatic"},
+        {"title": "Wordpress", "path": "/content/wordpress"},
+        {"title": "CMS API", "path": "/content/cms-api"},
+        {"title": "Supabase", "path": "/content/supabase"},
+        {"title": "Custom CMS", "path": "/content/creating-your-own-cms-client"}
+      ]
+    },
+    {
+      "name": "UI Components",
+      "slug": "components",
+      "pages": [
+        {"title": "Shadcn UI", "path": "/components/shadcn"},
+        {"title": "Multi Step Forms", "path": "/components/multi-step-forms"},
+        {"title": "Stepper", "path": "/components/stepper"},
+        {"title": "Data Table", "path": "/components/data-table"},
+        {"title": "Loading Overlay", "path": "/components/loading-overlay"},
+        {"title": "Conditional Rendering", "path": "/components/if"},
+        {"title": "Page", "path": "/components/page"},
+        {"title": "App Breadcrumbs", "path": "/components/app-breadcrumbs"},
+        {"title": "Card Button", "path": "/components/card-button"},
+        {"title": "Cookie Banner", "path": "/components/cookie-banner"},
+        {"title": "Empty State", "path": "/components/empty-state"},
+        {"title": "Bordered Navigation Menu", "path": "/components/bordered-navigation-menu"},
+        {"title": "Marketing Components", "path": "/components/marketing-components"},
+        {"title": "Temporary Landing Page", "path": "/components/coming-soon"}
+      ]
+    },
+    {
+      "name": "Notifications",
+      "slug": "notifications",
+      "pages": [
+        {"title": "Notifications Configuration", "path": "/notifications/notifications-configuration"},
+        {"title": "Sending Notifications", "path": "/notifications/sending-notifications"}
+      ]
+    },
+    {
+      "name": "Translations",
+      "slug": "translations",
+      "pages": [
+        {"title": "Using translations", "path": "/translations/using-translations"},
+        {"title": "Adding new translations", "path": "/translations/adding-translations"},
+        {"title": "Language Selector", "path": "/translations/language-selector"}
+      ]
+    },
+    {
+      "name": "Emails",
+      "slug": "emails",
+      "pages": [
+        {"title": "Email Configuration", "path": "/emails/email-configuration"},
+        {"title": "Sending Emails", "path": "/emails/sending-emails"},
+        {"title": "Email Templates", "path": "/emails/email-templates"},
+        {"title": "Authentication Emails", "path": "/emails/authentication-emails"},
+        {"title": "Local Development", "path": "/emails/inbucket"},
+        {"title": "Custom Mailer", "path": "/emails/custom-mailer"}
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "slug": "monitoring",
+      "pages": [
+        {"title": "How Monitoring works", "path": "/monitoring/overview"},
+        {"title": "Sentry", "path": "/monitoring/sentry"},
+        {"title": "Signoz", "path": "/monitoring/signoz"},
+        {"title": "Posthog", "path": "/monitoring/posthog"},
+        {"title": "Baselime", "path": "/monitoring/baselime"}
+      ]
+    },
+    {
+      "name": "Super Admin",
+      "slug": "admin",
+      "pages": [
+        {"title": "Adding a Super Admin", "path": "/admin/adding-super-admin"}
+      ]
+    },
+    {
+      "name": "Analytics",
+      "slug": "analytics",
+      "pages": [
+        {"title": "Analytics and Events", "path": "/analytics/analytics-and-events"},
+        {"title": "Google Analytics", "path": "/analytics/google-analytics-provider"},
+        {"title": "PostHog", "path": "/analytics/posthog-analytics-provider"},
+        {"title": "Umami", "path": "/analytics/umami-analytics-provider"},
+        {"title": "Custom Analytics Provider", "path": "/analytics/custom-analytics-provider"}
+      ]
+    },
+    {
+      "name": "Security",
+      "slug": "security",
+      "pages": [
+        {"title": "Next.js Best Practices", "path": "/security/nextjs-best-practices"},
+        {"title": "Row Level Security", "path": "/security/row-level-security"},
+        {"title": "Data Validation", "path": "/security/data-validation"},
+        {"title": "Content Security Policy (CSP)", "path": "/security/csp"}
+      ]
+    },
+    {
+      "name": "Going to Production",
+      "slug": "going-to-production",
+      "pages": [
+        {"title": "Checklist", "path": "/going-to-production/checklist"},
+        {"title": "Environment Variables", "path": "/going-to-production/production-environment-variables"},
+        {"title": "Deploy Supabase", "path": "/going-to-production/supabase"},
+        {"title": "Authentication", "path": "/going-to-production/authentication"},
+        {"title": "Authentication Emails", "path": "/going-to-production/authentication-emails"},
+        {"title": "Deploy to Vercel", "path": "/going-to-production/vercel"},
+        {"title": "Deploy to Cloudflare", "path": "/going-to-production/cloudflare"},
+        {"title": "Deploy to sherpa.sh", "path": "/going-to-production/sherpa"},
+        {"title": "Deploy to a VPS", "path": "/going-to-production/vps"},
+        {"title": "Deploy using Docker", "path": "/going-to-production/docker"}
+      ]
+    },
+    {
+      "name": "Plugins",
+      "slug": "plugins",
+      "pages": [
+        {"title": "Installing Plugins", "path": "/plugins/installing-plugins"},
+        {"title": "Waitlist", "path": "/plugins/waitlist-plugin"},
+        {"title": "Roadmap Plugin", "path": "/plugins/roadmap-plugin"},
+        {"title": "Testimonials Plugin", "path": "/plugins/testimonials-plugin"},
+        {"title": "AI Chatbot", "path": "/plugins/chatbot-plugin"},
+        {"title": "Feedback Widget", "path": "/plugins/feedback-plugin"}
+      ]
+    },
+    {
+      "name": "Recipes",
+      "slug": "recipes",
+      "pages": [
+        {"title": "Disabling Team Accounts", "path": "/recipes/personal-accounts-only"},
+        {"title": "Disabling Personal Accounts", "path": "/recipes/team-accounts-only"},
+        {"title": "Onboarding Checkout", "path": "/recipes/onboarding-checkout"},
+        {"title": "Checkout Addons with Stripe Billing", "path": "/recipes/stripe-billing-checkout-addons"},
+        {"title": "Subscription Entitlements", "path": "/recipes/subscription-entitlements"},
+        {"title": "Projects Data Model", "path": "/recipes/projects-data-model"},
+        {"title": "Drizzle", "path": "/recipes/drizzle-supabase"}
+      ]
+    },
+    {
+      "name": "Developer Tools",
+      "slug": "dev-tools",
+      "pages": [
+        {"title": "Environment Variables", "path": "/dev-tools/environment-variables"},
+        {"title": "Translations Editor", "path": "/dev-tools/translations"}
+      ]
+    },
+    {
+      "name": "Troubleshooting",
+      "slug": "troubleshooting",
+      "pages": [
+        {"title": "Installation", "path": "/troubleshooting/troubleshooting-installation"},
+        {"title": "Authentication", "path": "/troubleshooting/troubleshooting-authentication"},
+        {"title": "Billing", "path": "/troubleshooting/troubleshooting-billing"},
+        {"title": "Deployment", "path": "/troubleshooting/troubleshooting-deployment"},
+        {"title": "Emails", "path": "/troubleshooting/troubleshooting-emails"},
+        {"title": "License", "path": "/troubleshooting/troubleshooting-license"},
+        {"title": "Modules not found", "path": "/troubleshooting/troubleshooting-module-not-found"}
+      ]
+    }
+  ]
+}

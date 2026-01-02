@@ -1,0 +1,23 @@
+{
+  "name": "yoga-local",
+  "owner": {
+    "name": "YogaBuddhi Team"
+  },
+  "metadata": {
+    "description": "Local plugins for YogaBuddhi project"
+  },
+  "plugins": [
+    {
+      "name": "ideacion",
+      "source": "../../ideacion",
+      "description": "Transforma ideas en specs de producto mediante entrevistas profundas",
+      "version": "1.1.0"
+    },
+    {
+      "name": "makerkit-dev",
+      "source": "../../makerkit-dev",
+      "description": "Blueprint generator for MakerKit projects",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -76,11 +76,15 @@ async function Page({ params }: Props) {
 - RLS utility functions
 - Trigger functions
 
-**Key Functions:**
-- `is_team_member(account_id, user_id)` - RLS for team resources
-- `has_role_on_account(user_id, account_id)` - Check membership
-- `has_permission(user_id, account_id, permission)` - Permission check
-- `trigger_set_timestamps()` - Auto-update dates
+**Key Functions (RLS - USAR ESTAS):**
+- `has_role_on_account(account_id)` - Verificar membresía en cuenta (PREFERIDA para RLS)
+- `has_role_on_account(account_id, 'role')` - Verificar rol específico
+- `has_permission(auth.uid(), account_id, 'perm'::app_permissions)` - Verificar permiso granular
+- `is_account_owner(account_id)` - Verificar propietario principal
+- `is_team_member(account_id, user_id)` - Verificar si OTRO usuario es miembro (NO para RLS del usuario actual)
+
+**Triggers:**
+- `trigger_set_timestamps()` - Auto-update created_at/updated_at
 - `trigger_set_user_tracking()` - Auto-set created_by/updated_by
 
 ### packages/ui/CLAUDE.md

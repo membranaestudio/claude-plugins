@@ -38,7 +38,7 @@ For detailed content, read `references/claude-md-index.md`.
 ### Team Account
 - Data belongs to account, shared by members
 - FK: `account_id → accounts.id`
-- RLS: `is_team_member(account_id, auth.uid())`
+- RLS: `has_role_on_account(account_id)` - verifica membresía en cuenta
 - Use when: Collaborative features, shared resources
 
 ## Essential MCP Tools
@@ -116,7 +116,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.my_table TO authenticated;
 -- 4. Create policies
 CREATE POLICY my_table_select ON public.my_table
   FOR SELECT TO authenticated
-  USING (is_team_member(account_id, auth.uid()));
+  USING (public.has_role_on_account(account_id));
 ```
 
 ## Official Documentation (makerkit-docs)
@@ -141,10 +141,12 @@ Para patrones conceptuales que el MCP no cubre, usa el skill `makerkit-docs`:
 ## Additional Resources
 
 ### Reference Files
+- **`references/makerkit-consolidado.md`** - Quick reference con templates copy-paste ready (PREFERIDO)
 - **`references/claude-md-index.md`** - Complete CLAUDE.md file contents
 - **`references/mcp-tools.md`** - All MCP tools with examples
 
 ### When to Load References
+- Need templates for Ralph → read `makerkit-consolidado.md` (PRIMERO)
 - Need specific CLAUDE.md content → read `claude-md-index.md`
 - Need MCP tool details → read `mcp-tools.md`
 - Quick pattern check → use this SKILL.md

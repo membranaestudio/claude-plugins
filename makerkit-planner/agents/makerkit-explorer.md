@@ -81,8 +81,8 @@ Critical files for MakerKit patterns:
 ### 5. Identify Key Patterns
 
 **Account Type Pattern**:
-- Personal: `user_id → auth.users.id`, RLS uses `auth.uid()`
-- Team: `account_id → accounts.id`, RLS uses `is_team_member()`
+- Personal: `user_id → auth.users.id`, RLS uses `auth.uid() = user_id`
+- Team: `account_id → accounts.id`, RLS uses `has_role_on_account(account_id)`
 
 **Server Action Pattern**:
 - Uses `enhanceAction` from `@kit/next/actions`

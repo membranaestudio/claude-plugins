@@ -1,269 +1,427 @@
 ---
 description: Generate architecture blueprint for MakerKit features using MCP analysis
-argument-hint: Feature description (e.g., "Add student management")
+argument-hint: "[feature_name] or leave empty to start workflow"
 ---
 
 # MakerKit Blueprint Generator
 
-Generate architecture blueprints for MakerKit features. Uses MCP tools to analyze codebase and produces Ralph-ready implementation plans.
+Generate architecture blueprints for MakerKit features. Adapts to any project structure.
 
 ## Core Principles
 
-- **MCP First**: Always use MCP tools before making architecture decisions
-- **No Assumptions**: Ask clarifying questions for all ambiguities
-- **Ralph-Ready Output**: Blueprints must be executable without human intervention
-- **Follow Patterns**: Match existing MakerKit patterns exactly
+- **Adaptive**: Works with existing structure or creates new one
+- **AskUserQuestion**: Always clarify before assuming
+- **MCP Analysis**: Use MCP tools for accurate codebase understanding
+- **Ralph-Ready**: Output must be executable without human intervention
 
 ---
 
-## Phase 0: Prerequisites Verification
+## Phase 0: Project Context Detection
 
-**Goal**: Verify MCP connection and context before proceeding
-
-> **WARNING**: Do NOT skip this phase. ANY assumption = blueprint failure.
+**Goal**: Understand project structure and configuration
 
 **Actions**:
 
-1. **Verify MCP Connection** (MANDATORY):
+1. **Check for existing configuration**:
+   ```
+   Look for: .claude/makerkit-planner.local.md
+   ```
+
+   If exists → Read saved configuration (specs path, blueprints path, version)
+   If not exists → Proceed to ask user
+
+2. **Detect existing structure** (search for patterns):
+   ```
+   Specs patterns:
+   - docs/producto/*/03-FEATURE-SPECS.md
+   - docs/producto-*/03-FEATURE-SPECS.md
+   - docs/specs/*.md
+   - docs/*.md with "Feature:" headers
+
+   Blueprint patterns:
+   - docs/build/*/
+   - docs/arquitectura/
+   - docs/blueprints/
+   ```
+
+3. **AskUserQuestion based on findings**:
+
+   **If specs found:**
+   ```yaml
+   question: "Encontre specs en [path]. ¿Usar este archivo?"
+   header: "Specs"
+   options:
+     - label: "Si, usar ese archivo"
+       description: "Continuar con los specs detectados"
+     - label: "No, buscar en otro lugar"
+       description: "Especificar path diferente"
+     - label: "No tengo specs aun"
+       description: "Ejecuta /ideacion primero para generarlos"
+   ```
+
+   **If no specs found:**
+   ```yaml
+   question: "No encontre specs de producto. ¿Que hacemos?"
+   header: "Specs"
+   options:
+     - label: "Ejecutar /ideacion primero"
+       description: "Generar specs de producto con el plugin de ideacion"
+     - label: "Tengo specs en otro lugar"
+       description: "Especificar path manualmente"
+     - label: "Crear feature sin specs"
+       description: "Definir feature manualmente ahora"
+   ```
+
+4. **If no blueprints structure exists:**
+   ```yaml
+   question: "¿Donde guardar los blueprints?"
+   header: "Output"
+   options:
+     - label: "docs/build/"
+       description: "Carpeta 'build' orientada a accion"
+     - label: "docs/blueprints/"
+       description: "Carpeta explicita 'blueprints'"
+     - label: "docs/arquitectura/"
+       description: "Carpeta 'arquitectura' (espanol)"
+     - label: "Otro"
+       description: "Especificar path personalizado"
+   ```
+
+5. **Version structure:**
+   ```yaml
+   question: "¿Usar versionado en la estructura?"
+   header: "Version"
+   options:
+     - label: "Si, con versiones"
+       description: "Ej: docs/build/v1.0/feature/"
+     - label: "No, carpeta unica"
+       description: "Ej: docs/build/feature/"
+   ```
+
+6. **Save configuration** to `.claude/makerkit-planner.local.md`:
+   ```yaml
+   ---
+   specs_path: "docs/producto"
+   blueprints_path: "docs/build"
+   use_versions: true
+   current_version: "v1.0"
+   ---
+
+   # MakerKit Planner Configuration
+
+   Saved configuration for this project.
+   Edit this file to change paths.
+   ```
+
+**Output**: Configuration determined (specs path, blueprints path, version settings)
+
+---
+
+## Phase 1: Specs Loading & Feature Selection
+
+**Goal**: Load specs and let user choose features
+
+**Actions**:
+
+1. **Read specs file** at configured path
+
+2. **Parse features** from specs:
+   - Look for `## Feature:` headers
+   - Extract feature names, fields, operations
+   - Note any `[DEFAULT]` or `[PENDIENTE]` markers
+
+3. **Present features found**:
+   ```
+   Specs cargados de: [path]
+
+   Features detectadas:
+   1. [Feature A] - [brief description]
+   2. [Feature B] - [brief description]
+   ...
+   ```
+
+4. **AskUserQuestion - Feature selection**:
+   ```yaml
+   question: "¿Que features generar?"
+   header: "Features"
+   multiSelect: true
+   options:
+     - label: "Todas las features"
+       description: "Generar blueprints para todas"
+     - label: "Solo la primera (dependencia base)"
+       description: "Empezar con la feature base"
+     - label: "Seleccionar manualmente"
+       description: "Elegir features especificas"
+   ```
+
+5. **Confirm order**:
+   ```
+   Orden de generacion: Feature A → Feature B → Feature C
+   ¿Confirmar?
+   ```
+
+**Output**: List of features to generate, in order
+
+---
+
+## Phase 2: MCP Analysis
+
+**Goal**: Understand MakerKit patterns in this codebase
+
+**Actions**:
+
+1. **Validate MCP connection**:
    ```
    get_database_summary()    → Must return tables/enums
    find_complete_features()  → Must return feature list
    ```
-   If either fails → STOP and inform: "MCP not connected. Cannot proceed."
+   If fails → STOP: "MCP no conectado. Verifica que el servidor MCP este activo."
 
-2. **Verify Context Files Exist**:
-   | File | Required | If Missing |
-   |------|----------|------------|
-   | `apps/web/CLAUDE.md` | Yes | Do not continue |
-   | `apps/web/supabase/CLAUDE.md` | Yes | Do not continue |
-   | `CLAUDE.md` (root) | Recommended | Warn user |
+2. **Launch exploration agents**:
 
-3. **Check Input Requirements**:
-   - Feature description provided (via $ARGUMENTS)
-   - If unclear, ask user before proceeding
-
-**Output**: Confirmation that MCP works and context is available.
-
----
-
-## Phase 1: Discovery
-
-**Goal**: Understand what needs to be built
-
-Initial request: $ARGUMENTS
-
-**Actions**:
-
-1. Create todo list with all phases
-2. If feature unclear, ask user for:
-   - What entity/data does this feature manage?
-   - What problem are they solving?
-   - Any constraints or requirements?
-3. Identify:
-   - **Entity name** (singular, e.g., "student", "payment")
-   - **Account type** (personal or team)
-   - **Operations needed** (create, read, update, delete, list)
-4. Summarize understanding and confirm with user
-
-**Output**: Clear feature definition with entity, account type, and operations.
-
----
-
-## Phase 2: Codebase Exploration
-
-**Goal**: Understand MakerKit patterns using MCP tools
-
-**Actions**:
-
-1. Launch 2 `makerkit-explorer` agents in parallel:
-
-   **Agent 1 - Database & Patterns**:
+   **Database & Patterns Agent**:
    ```
-   Use MCP tools to analyze:
    - get_database_summary() → existing tables, enums, functions
-   - find_complete_features() → reference features to study
-   - analyze_feature_pattern("<similar_feature>") → patterns to follow
-   - get_all_enums() → existing enums to reuse
-
-   Return: Database patterns, helper functions available, reference feature recommendation
+   - find_complete_features() → reference features
+   - get_all_enums() → available enums
+   - search_database_functions() → helper functions
    ```
 
-   **Agent 2 - Routes & Components**:
+   **Routes & Components Agent**:
    ```
-   Use MCP tools to analyze:
-   - get_app_routes({filter: "home"}) → route structure
+   - get_app_routes() → route structure
    - get_server_actions() → action patterns
-   - components_search("<keyword>") → reusable UI components
-
-   Also read CLAUDE.md files:
-   - apps/web/CLAUDE.md
-   - apps/web/supabase/CLAUDE.md
-   - packages/features/CLAUDE.md
-
-   Return: Route patterns, component recommendations, CLAUDE.md key insights
+   - components_search() → reusable UI
+   - Read CLAUDE.md files
    ```
 
-2. Read all files identified by agents
-3. Check if inventory exists: `docs/arquitectura/00-INVENTARIO-MAKERKIT.md`
-   - If NO: Generate inventory first using makerkit-patterns skill
-   - If YES: Read it for project decisions
-4. Present comprehensive summary of findings
+3. **Check if inventory exists** at blueprints path:
+   - If NO: Flag for generation in Phase 4
+   - If YES: Read for project decisions
 
-**Output**: MCP analysis results, reference feature, patterns to follow.
+**Output**: MCP analysis results, reference patterns
 
 ---
 
-## Phase 3: Clarifying Questions
+## Phase 3: Clarifying Questions (Per Feature)
 
-**Goal**: Resolve ALL ambiguities before designing
+**Goal**: Resolve ALL ambiguities using AskUserQuestion
 
-**CRITICAL**: DO NOT SKIP THIS PHASE.
+**CRITICAL**: Every ambiguity now = Ralph failure later.
 
-**Actions**:
+**For each feature, check specs and ask if unclear:**
 
-1. Review discovery + exploration findings
-2. Identify underspecified aspects:
+### 3.1 Account Type
+```yaml
+question: "¿[Feature] es de cuenta personal o de equipo?"
+header: "Account"
+options:
+  - label: "Team Account"
+    description: "Datos compartidos entre miembros del equipo"
+  - label: "Personal Account"
+    description: "Solo el usuario ve sus propios datos"
+```
 
-   **Data Model**:
-   - What fields does the entity need?
-   - Any relationships to existing tables?
-   - What validations are required?
-   - Any computed/derived fields?
+### 3.2 Estados
+```yaml
+question: "¿Que estados puede tener [entidad]?"
+header: "Estados"
+options:
+  - label: "active, archived"
+    description: "Patron MakerKit default (soft delete)"
+  - label: "Estados especificos"
+    description: "Definir lista personalizada"
+  - label: "Sin estados"
+    description: "No aplica"
+```
 
-   **Business Logic**:
-   - What states can the entity have?
-   - Any workflows or state transitions?
-   - Permission requirements beyond basic CRUD?
-   - Any triggers or side effects?
+### 3.3 Borrado
+```yaml
+question: "¿Como manejar eliminacion de [entidad]?"
+header: "Delete"
+options:
+  - label: "Soft delete"
+    description: "Campo archived_at, mantiene historial"
+  - label: "Hard delete"
+    description: "Elimina permanentemente"
+  - label: "No permitir"
+    description: "Solo cambiar estado"
+```
 
-   **UI/UX**:
-   - List view: table, cards, or custom?
-   - Create/edit: modal, page, or inline?
-   - Any bulk operations needed?
-   - Search/filter requirements?
+### 3.4 Permisos (if team account)
+```yaml
+question: "¿Que permisos por rol?"
+header: "Permisos"
+options:
+  - label: "Owner/Admin: CRUD, Member: Read"
+    description: "Patron tipico MakerKit"
+  - label: "Solo Owner/Admin"
+    description: "Members no ven"
+  - label: "Todos CRUD"
+    description: "Sin restriccion"
+```
 
-   **Integration**:
-   - Connect to other features?
-   - External APIs involved?
-   - Notifications needed?
+### 3.5 UI Layout
+```yaml
+question: "¿Vista principal de [entidad]?"
+header: "Vista"
+options:
+  - label: "Tabla (DataTable)"
+    description: "Lista con columnas, sorting"
+  - label: "Cards"
+    description: "Grid de tarjetas"
+  - label: "Lista simple"
+    description: "Items verticales"
+```
 
-3. **Present all questions in organized list**
-4. **Wait for answers before proceeding**
+**Handling "No se"**:
+- Propose MakerKit default
+- Mark as `[DEFAULT]` in blueprint
+- Document reasoning
 
-If user says "whatever you think is best":
-- Provide recommendation based on MakerKit patterns
-- Get explicit confirmation
-
-**Output**: All questions answered, no ambiguities remain.
+**Output**: All questions answered, decisions documented
 
 ---
 
-## Phase 4: Architecture Design
+## Phase 4: Blueprint Generation
 
-**Goal**: Generate complete Ralph-ready blueprint
+**Goal**: Generate blueprints at configured paths
 
 **Actions**:
 
-1. Launch 1-2 `makerkit-architect` agents:
+### 4.1 Generate Inventory (if not exists)
 
-   **Primary Architect**:
-   ```
-   Design complete feature architecture:
-   - Database schema with RLS (use generate_rls_policy MCP tool)
-   - Zod validation schemas
-   - Server actions with enhanceAction
-   - Page loaders with 'server-only'
-   - Route structure following MakerKit patterns
-   - Component props/interfaces
+Use template from `${CLAUDE_PLUGIN_ROOT}/templates/inventario.md`
 
-   Output format must be Ralph-ready with:
-   - Copy-paste ready code (no placeholders)
-   - Implementation checklist with verify commands
-   - Completion criteria for Ralph
-   ```
+Output at: `[blueprints_path]/[version]/00-INVENTARIO.md`
 
-   **Optional - If complex feature, add second architect**:
-   ```
-   Review primary design for:
-   - Security (RLS completeness)
-   - Performance (indexes, query patterns)
-   - MakerKit convention compliance
+Content includes:
+- MakerKit tables used vs not used
+- Helper functions available
+- Enums available
+- Architecture decisions
 
-   Suggest improvements if needed
-   ```
+### 4.2 Generate Blueprint per Feature
 
-2. Review architecture output
-3. Validate with MCP:
-   ```
-   validate_rls_policies("<table>") → check RLS completeness
-   ```
+Use `makerkit-architect` agent for each feature.
 
-4. Generate blueprint file: `docs/arquitectura/XX-<feature>.md`
+Output at: `[blueprints_path]/[version]/XX-[feature]/BLUEPRINT.md`
 
-**Blueprint must include**:
-
+Structure:
 ```markdown
 # [Feature] Architecture Blueprint
 
+## Specs Input
+> Source: [specs_path]
+> Feature: [name]
+
+## Questions Resolved
+| Question | Answer | Source |
+
 ## Context
-- Inventory reference
-- MCP tools used
-- Reference features analyzed
-- CLAUDE.md files consulted
+- Inventory: [relative path]
+- MCP tools used: [list]
 
 ## Requirements Summary
 | Aspect | Decision |
-|--------|----------|
-| Entity | [name] |
-| Account Type | personal / team |
-| Operations | create, read, update, delete |
 
 ## Database Layer
-- Complete SQL (CREATE TABLE, indexes, triggers)
-- RLS policies (SELECT, INSERT, UPDATE, DELETE)
-- Helper functions used
+[Complete SQL]
 
 ## Server Layer
-- Zod schemas (Create, Update, Delete)
-- Server actions with enhanceAction
-- Page loaders with 'server-only'
+[Zod, Actions, Loaders]
 
 ## UI Layer
-- Route structure
-- Component props/interfaces
-- @kit/ui components to use
+[Routes, Components]
 
-## Implementation Checklist (Ralph-Ready)
-| # | Task | File | Blocked By | Verify Command |
-|---|------|------|------------|----------------|
-| 1 | Create schema | path | - | test -f path |
-...
+## Implementation Checklist
+| # | Task | File | Verify Command |
 
 ## Completion Criteria
-All verify commands must pass for FEATURE_COMPLETE.
+[Commands that must pass]
+
+## Ralph Command
+[Ready-to-execute command with correct paths]
 ```
 
-5. Present blueprint summary to user
-6. Confirm blueprint is complete and ready for Ralph
+### 4.3 Generate Estado per Feature
 
-**Output**: Complete blueprint at `docs/arquitectura/XX-<feature>.md`
+Use template from `${CLAUDE_PLUGIN_ROOT}/templates/estado.md`
+
+Output at: `[blueprints_path]/[version]/XX-[feature]/estado.md`
 
 ---
 
-## After Blueprint Complete
+## Phase 5: Summary & Next Steps
 
-Provide user with Ralph command:
+**Actions**:
 
-```bash
-/ralph-loop "Lee docs/arquitectura/XX-feature.md y CLAUDE.md. Implementa el blueprint completo siguiendo el Implementation Checklist. Ejecuta Verify Command después de cada paso. Output <promise>FEATURE_COMPLETE</promise> cuando todos pasen." --max-iterations 15 --completion-promise "FEATURE_COMPLETE"
+1. **Present generation summary**:
+   ```
+   Blueprints generados:
+
+   1. [blueprints_path]/[version]/00-INVENTARIO.md
+   2. [blueprints_path]/[version]/01-[feature]/
+      ├── BLUEPRINT.md
+      └── estado.md
+   ...
+   ```
+
+2. **Provide Ralph commands** with correct paths:
+   ```bash
+   /ralph-loop "Implementa [Feature] siguiendo [path]/BLUEPRINT.md..."
+   --max-iterations 30
+   --completion-promise "FEATURE_COMPLETE"
+   ```
+
+3. **Offer next action**:
+   ```yaml
+   question: "¿Que hacemos ahora?"
+   header: "Siguiente"
+   options:
+     - label: "Ejecutar Ralph para primera feature"
+       description: "Iniciar implementacion autonoma"
+     - label: "Ver blueprint generado"
+       description: "Revisar antes de implementar"
+     - label: "Terminar por ahora"
+       description: "Implementare despues manualmente"
+   ```
+
+---
+
+## Configuration File Format
+
+Saved at `.claude/makerkit-planner.local.md`:
+
+```yaml
+---
+specs_path: "docs/producto"
+blueprints_path: "docs/build"
+use_versions: true
+current_version: "v1.0"
+created: "2026-01-03"
+updated: "2026-01-03"
+---
+
+# MakerKit Planner - Project Configuration
+
+## Paths
+- **Specs**: `docs/producto/` (output de /ideacion)
+- **Blueprints**: `docs/build/` (output de /makerkit-blueprint)
+
+## Version
+- Current: v1.0
+
+## Notes
+[Project-specific notes]
 ```
 
 ---
 
 ## Important Notes
 
-- **Always use MCP tools** - Never guess database structure
-- **Follow CLAUDE.md** - These contain MakerKit-specific patterns
-- **Personal vs Team accounts** - Critical decision, verify with user
-- **RLS is non-negotiable** - Every table needs complete policies
-- **Ralph-ready means no ambiguity** - Code must be copy-paste ready
+- **Never assume paths** - Always detect or ask
+- **Save configuration** - So next run remembers
+- **Adapt to project** - Works with any folder structure
+- **AskUserQuestion for ambiguities** - Every unclear item = question
+- **MCP before assumptions** - Never guess database structure

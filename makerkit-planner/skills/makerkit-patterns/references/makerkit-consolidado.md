@@ -517,4 +517,548 @@ UI LAYER
 
 ---
 
-*Quick reference auto-contenido para makerkit-planner plugin*
+## 18. Junction Tables (Many-to-Many)
+
+> Cuando una entidad tiene relación N:M con otra.
+
+### SQL Template
+
+```sql
+-- Tabla principal A
+CREATE TABLE public.projects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  name text NOT NULL
+);
+
+-- Tabla principal B
+CREATE TABLE public.tags (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  name text NOT NULL
+);
+
+-- Junction table
+CREATE TABLE public.project_tags (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  tag_id uuid NOT NULL REFERENCES public.tags(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(project_id, tag_id)  -- Evitar duplicados
+);
+
+-- RLS para junction: heredar del parent
+ALTER TABLE public.project_tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY junction_select ON public.project_tags
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      WHERE p.id = project_id
+      AND public.has_role_on_account(p.account_id)
+    )
+  );
+
+CREATE POLICY junction_insert ON public.project_tags
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      WHERE p.id = project_id
+      AND public.has_permission(auth.uid(), p.account_id, 'projects.manage'::app_permissions)
+    )
+  );
+
+CREATE POLICY junction_delete ON public.project_tags
+  FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.projects p
+      WHERE p.id = project_id
+      AND public.has_permission(auth.uid(), p.account_id, 'projects.manage'::app_permissions)
+    )
+  );
+```
+
+### Zod Schema
+
+```typescript
+export const AddTagToProjectSchema = z.object({
+  projectId: z.string().uuid(),
+  tagId: z.string().uuid(),
+});
+
+export const RemoveTagFromProjectSchema = AddTagToProjectSchema;
+```
+
+### Loader Pattern
+
+```typescript
+// Cargar project con sus tags
+export async function loadProjectWithTags(client: SupabaseClient, projectId: string) {
+  const { data, error } = await client
+    .from('projects')
+    .select(`
+      *,
+      project_tags (
+        tag:tags (id, name)
+      )
+    `)
+    .eq('id', projectId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+```
+
+---
+
+## 19. Singleton per Account
+
+> Una sola instancia por team account (configuración, preferencias).
+
+### SQL Template
+
+```sql
+CREATE TABLE public.account_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  setting_name text,
+  setting_value jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(account_id)  -- SINGLETON: Solo uno por account
+);
+
+-- RLS simplificado para singleton
+CREATE POLICY settings_select ON public.account_settings
+  FOR SELECT TO authenticated
+  USING (public.has_role_on_account(account_id));
+
+CREATE POLICY settings_update ON public.account_settings
+  FOR UPDATE TO authenticated
+  USING (public.has_permission(auth.uid(), account_id, 'settings.manage'::app_permissions));
+
+-- NO permitir INSERT/DELETE manual (usar upsert o auto-crear)
+```
+
+### Server Action (Upsert)
+
+```typescript
+export const updateAccountSettingsAction = enhanceAction(
+  async (data, { user }) => {
+    const client = getSupabaseServerClient();
+
+    const { data: result, error } = await client
+      .from('account_settings')
+      .upsert({
+        account_id: data.accountId,
+        setting_name: data.settingName,
+        setting_value: data.settingValue,
+      }, {
+        onConflict: 'account_id'  // Singleton upsert
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data: result };
+  },
+  { schema: UpdateSettingsSchema }
+);
+```
+
+---
+
+## 20. Custom RPC Functions
+
+> Lógica de negocio compleja que debe ejecutarse en DB.
+
+### SQL Template
+
+```sql
+-- SECURITY INVOKER: Hereda RLS del caller (preferido)
+CREATE FUNCTION public.get_project_stats(p_account_id uuid)
+RETURNS TABLE(
+  total_projects integer,
+  active_projects integer,
+  completed_projects integer
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    COUNT(*)::integer as total_projects,
+    COUNT(*) FILTER (WHERE status = 'active')::integer as active_projects,
+    COUNT(*) FILTER (WHERE status = 'completed')::integer as completed_projects
+  FROM public.projects
+  WHERE account_id = p_account_id;
+END;
+$$;
+
+-- GRANT a authenticated
+GRANT EXECUTE ON FUNCTION public.get_project_stats TO authenticated;
+```
+
+### Llamar desde TypeScript
+
+```typescript
+// En loader
+export async function loadProjectStats(client: SupabaseClient, accountId: string) {
+  const { data, error } = await client.rpc('get_project_stats', {
+    p_account_id: accountId,
+  });
+
+  if (error) throw error;
+  return data?.[0] ?? { total_projects: 0, active_projects: 0, completed_projects: 0 };
+}
+```
+
+### Cuándo Usar SECURITY DEFINER
+
+```sql
+-- SECURITY DEFINER: Ejecuta con permisos del creador
+-- SOLO usar cuando necesitas bypass RLS controlado
+CREATE FUNCTION public.admin_get_all_users()
+RETURNS SETOF auth.users
+LANGUAGE plpgsql
+SECURITY DEFINER  -- ⚠️ CUIDADO: Bypass RLS
+SET search_path = ''
+AS $$
+BEGIN
+  -- Validar MANUALMENTE que es super admin
+  IF NOT public.is_super_admin() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  RETURN QUERY SELECT * FROM auth.users;
+END;
+$$;
+```
+
+---
+
+## 21. State Machine Pattern
+
+> Entidades con status que transiciona entre estados válidos.
+
+### SQL Template
+
+```sql
+-- Enum de estados
+CREATE TYPE public.task_status AS ENUM ('draft', 'pending', 'in_progress', 'completed', 'cancelled');
+
+-- Tabla con status
+CREATE TABLE public.tasks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  status public.task_status DEFAULT 'draft',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Trigger para validar transiciones
+CREATE FUNCTION public.validate_task_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Definir transiciones válidas
+  IF OLD.status = 'draft' AND NEW.status NOT IN ('pending', 'cancelled') THEN
+    RAISE EXCEPTION 'Invalid transition from draft to %', NEW.status;
+  ELSIF OLD.status = 'pending' AND NEW.status NOT IN ('in_progress', 'cancelled') THEN
+    RAISE EXCEPTION 'Invalid transition from pending to %', NEW.status;
+  ELSIF OLD.status = 'in_progress' AND NEW.status NOT IN ('completed', 'cancelled') THEN
+    RAISE EXCEPTION 'Invalid transition from in_progress to %', NEW.status;
+  ELSIF OLD.status IN ('completed', 'cancelled') THEN
+    RAISE EXCEPTION 'Cannot change status from final state %', OLD.status;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER check_task_transition
+  BEFORE UPDATE OF status ON public.tasks
+  FOR EACH ROW
+  WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION public.validate_task_transition();
+```
+
+### Zod Schema con Enum
+
+```typescript
+export const TaskStatusSchema = z.enum(['draft', 'pending', 'in_progress', 'completed', 'cancelled']);
+
+export const UpdateTaskStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: TaskStatusSchema,
+});
+
+// Validación de transición en cliente (opcional, DB es la fuente de verdad)
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  draft: ['pending', 'cancelled'],
+  pending: ['in_progress', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
+```
+
+---
+
+## 22. Partial Unique Indexes
+
+> Unique constraint que aplica solo bajo ciertas condiciones.
+
+### SQL Template
+
+```sql
+-- Ejemplo: Solo un item "active" por usuario
+CREATE UNIQUE INDEX unique_active_subscription
+ON public.subscriptions (user_id)
+WHERE status = 'active';
+
+-- Ejemplo: Unique por periodo excepto cancelled
+CREATE UNIQUE INDEX unique_payment_period
+ON public.payments (student_id, period_month, period_year)
+WHERE status != 'cancelled';
+
+-- Ejemplo: Unique slug solo para publicados
+CREATE UNIQUE INDEX unique_published_slug
+ON public.posts (account_id, slug)
+WHERE published = true;
+```
+
+### Cuándo Usar
+
+| Caso | Index |
+|------|-------|
+| Solo uno activo por usuario | `WHERE status = 'active'` |
+| Único excepto soft-deleted | `WHERE deleted_at IS NULL` |
+| Único por periodo vigente | `WHERE NOT expired` |
+
+---
+
+## 23. Array Fields
+
+> Campos que almacenan múltiples valores.
+
+### SQL Template
+
+```sql
+CREATE TABLE public.notifications_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  reminder_days integer[] DEFAULT '{3,5,7}'::integer[],  -- Array de enteros
+  notification_channels text[] DEFAULT '{email}'::text[],  -- Array de texto
+  UNIQUE(account_id)
+);
+
+-- Consultar si contiene valor
+SELECT * FROM notifications_settings
+WHERE 3 = ANY(reminder_days);
+
+-- Consultar si contiene todos
+SELECT * FROM notifications_settings
+WHERE reminder_days @> ARRAY[3, 5];
+```
+
+### Zod Schema
+
+```typescript
+export const NotificationSettingsSchema = z.object({
+  reminderDays: z.array(z.number().int().positive()).default([3, 5, 7]),
+  notificationChannels: z.array(z.enum(['email', 'sms', 'push'])).default(['email']),
+});
+```
+
+### TypeScript Type
+
+```typescript
+// Los arrays se mapean a arrays TypeScript
+type NotificationSettings = {
+  reminder_days: number[] | null;
+  notification_channels: string[] | null;
+}
+```
+
+---
+
+## 24. Direct User Access (Sin Team Membership)
+
+> Usuario accede a recursos sin ser miembro del team account.
+> Útil para: clientes, invitados, usuarios externos.
+
+### SQL Template
+
+```sql
+CREATE TABLE public.guest_resources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id),  -- OPCIONAL: puede ser NULL
+  access_token text UNIQUE,  -- Para acceso sin login
+  data jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- RLS: Team member O usuario directo O token válido
+CREATE POLICY guest_select ON public.guest_resources
+  FOR SELECT TO authenticated
+  USING (
+    -- Team members ven todo del account
+    public.has_role_on_account(account_id)
+    OR
+    -- Usuario ve solo sus propios recursos
+    user_id = auth.uid()
+  );
+
+-- Para acceso anónimo via token (usar en API route, no RLS)
+CREATE POLICY guest_anon_select ON public.guest_resources
+  FOR SELECT TO anon
+  USING (
+    access_token IS NOT NULL  -- Solo recursos con token público
+  );
+```
+
+### Pattern de Magic Link
+
+```typescript
+// Generar link de acceso
+export async function generateAccessLink(resourceId: string) {
+  const token = crypto.randomUUID();
+
+  await client
+    .from('guest_resources')
+    .update({ access_token: token })
+    .eq('id', resourceId);
+
+  return `${baseUrl}/access/${token}`;
+}
+
+// Verificar acceso via token
+export async function verifyAccess(token: string) {
+  const { data } = await client
+    .from('guest_resources')
+    .select('*')
+    .eq('access_token', token)
+    .single();
+
+  return data;
+}
+```
+
+---
+
+## 25. Soft Delete Pattern
+
+> Marcar como eliminado en lugar de DELETE real.
+
+### SQL Template
+
+```sql
+CREATE TABLE public.documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  deleted_at timestamptz,  -- NULL = activo, timestamp = eliminado
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Índice para queries de activos
+CREATE INDEX idx_documents_active
+ON public.documents (account_id)
+WHERE deleted_at IS NULL;
+
+-- RLS: Solo ver activos por defecto
+CREATE POLICY documents_select ON public.documents
+  FOR SELECT TO authenticated
+  USING (
+    public.has_role_on_account(account_id)
+    AND deleted_at IS NULL  -- Solo activos
+  );
+
+-- Vista para incluir eliminados (admin)
+CREATE VIEW public.documents_all AS
+SELECT * FROM public.documents
+WHERE public.has_role_on_account(account_id);
+```
+
+### Server Action
+
+```typescript
+export const softDeleteDocumentAction = enhanceAction(
+  async ({ id }) => {
+    const client = getSupabaseServerClient();
+
+    const { error } = await client
+      .from('documents')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+    return { success: true };
+  },
+  { schema: DeleteDocumentSchema }
+);
+
+export const restoreDocumentAction = enhanceAction(
+  async ({ id }) => {
+    const client = getSupabaseServerClient();
+
+    const { error } = await client
+      .from('documents')
+      .update({ deleted_at: null })
+      .eq('id', id);
+
+    if (error) throw error;
+    return { success: true };
+  },
+  { schema: RestoreDocumentSchema }
+);
+```
+
+---
+
+## 26. Cuándo Usar Cada Patrón
+
+| Patrón | Usar Cuando | Ejemplo |
+|--------|-------------|---------|
+| Junction Table | Relación N:M | tags, categories, permissions |
+| Singleton | Una config por account | settings, preferences |
+| Custom RPC | Lógica compleja en DB | stats, aggregations, validations |
+| State Machine | Status con transiciones | orders, tasks, workflows |
+| Partial Unique | Unique condicional | "solo uno activo" |
+| Array Fields | Lista de valores simples | días, tags inline, opciones |
+| Direct User Access | Usuario sin membership | clientes, invitados, público |
+| Soft Delete | Preservar historial | documentos, registros auditables |
+
+---
+
+## 27. Checklist de Patrones Avanzados
+
+### Pre-Blueprint
+- [ ] ¿La feature tiene relaciones N:M? → Sección 18
+- [ ] ¿Es configuración única por account? → Sección 19
+- [ ] ¿Necesita lógica DB compleja? → Sección 20
+- [ ] ¿Tiene estados con transiciones? → Sección 21
+- [ ] ¿Unique solo bajo condiciones? → Sección 22
+- [ ] ¿Campos con múltiples valores? → Sección 23
+- [ ] ¿Usuarios acceden sin ser members? → Sección 24
+- [ ] ¿Necesita soft delete? → Sección 25
+
+### Durante Blueprint
+- [ ] Incluir template de patrón identificado
+- [ ] Adaptar RLS según patrón
+- [ ] Documentar en estado.md qué patrón se usa
+
+---
+
+*Quick reference auto-contenido para makerkit-planner plugin v1.3.0*

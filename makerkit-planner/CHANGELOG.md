@@ -4,6 +4,38 @@ Registro de mejoras basadas en testing real y consolidación de patrones MakerKi
 
 ---
 
+## [1.3.0] - 2026-01-03
+
+### Agregado
+
+**10 Advanced Patterns en makerkit-consolidado.md (Secciones 18-27):**
+
+| Sección | Pattern | Uso |
+|---------|---------|-----|
+| 18 | Junction Tables | Relaciones N:M con RLS heredado |
+| 19 | Singleton per Account | Config única por cuenta |
+| 20 | Custom RPC Functions | Lógica DB compleja con security invoker |
+| 21 | State Machine | Estados con transiciones validadas |
+| 22 | Partial Unique Indexes | Constraints condicionales |
+| 23 | Array Fields | Arrays PostgreSQL + Zod |
+| 24 | Direct User Access | RLS dual (team OR user) |
+| 25 | Soft Delete | deleted_at con políticas automáticas |
+| 26 | Pattern Selection Guide | Cuándo usar cada pattern |
+| 27 | Advanced Patterns Checklist | Pre-blueprint verification |
+
+**Templates SQL completos para cada pattern:**
+- CREATE TABLE con constraints
+- RLS policies correctas
+- Triggers de validación
+- Zod schemas correspondientes
+
+### Razón del cambio
+
+Análisis de specs vs arquitectura MakerKit reveló gaps en patterns avanzados.
+Objetivo: Blueprints más completos para que Ralph/Opus tenga todo lo necesario.
+
+---
+
 ## [1.2.0] - 2026-01-03
 
 ### Agregado

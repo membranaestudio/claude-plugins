@@ -375,6 +375,7 @@ export async function loadFeatureById(
 ```
 apps/web/app/home/[account]/features/
 ├── page.tsx                    # List page
+├── loading.tsx                 # Skeleton loading state
 ├── [id]/
 │   └── page.tsx               # Detail/edit page
 ├── _components/
@@ -387,6 +388,134 @@ apps/web/app/home/[account]/features/
     │   └── feature-server-actions.ts
     └── schemas/
         └── feature.schema.ts
+```
+
+### Account Context (Centralized)
+
+Always use centralized account resolution:
+
+```typescript
+// apps/web/lib/server/account.ts (create if not exists)
+import 'server-only';
+import { cache } from 'react';
+import { getSupabaseServerClient } from '@kit/supabase/server-client';
+
+export const getAccountBySlug = cache(async (slug: string) => {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('accounts')
+    .select('id, name, slug')
+    .eq('slug', slug)
+    .single();
+  if (error || !data) throw new Error(`Account not found: ${slug}`);
+  return data;
+});
+```
+
+Then in pages/actions:
+```typescript
+import { getAccountBySlug } from '~/lib/server/account';
+const account = await getAccountBySlug(slug);
+```
+
+### Breadcrumb (Required)
+
+Every page MUST have breadcrumbs:
+
+```typescript
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@kit/ui/breadcrumb';
+
+<Breadcrumb>
+  <BreadcrumbList>
+    <BreadcrumbItem>
+      <BreadcrumbLink href={`/home/${account}`}>Home</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbPage>Features</BreadcrumbPage>
+    </BreadcrumbItem>
+  </BreadcrumbList>
+</Breadcrumb>
+```
+
+### Permission-Based Rendering
+
+For team account features, check permissions before rendering actions:
+
+```typescript
+import { useTeamAccountWorkspace } from '@kit/team-accounts/hooks/use-team-account-workspace';
+
+function FeatureActions() {
+  const { permissions, role } = useTeamAccountWorkspace();
+  const canManage = permissions.includes('settings.manage');
+  const isOwner = role === 'owner';
+
+  return (
+    <>
+      {canManage && <CreateFeatureButton />}
+      {isOwner && <DangerZone><DeleteFeatureButton /></DangerZone>}
+    </>
+  );
+}
+```
+
+### Loading State (Required)
+
+Create `loading.tsx` for every route:
+
+```typescript
+// apps/web/app/home/[account]/features/loading.tsx
+import { Skeleton } from '@kit/ui/skeleton';
+
+export default function FeaturesLoading() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-10 w-full" />
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### Empty State (Required for Tables)
+
+```typescript
+{data.length === 0 && (
+  <TableRow>
+    <TableCell colSpan={columns.length} className="text-center py-8">
+      <div className="text-muted-foreground">
+        <UsersIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
+        <p>No hay features aún</p>
+        <Button variant="outline" className="mt-4" onClick={onCreate}>
+          Crear primera feature
+        </Button>
+      </div>
+    </TableCell>
+  </TableRow>
+)}
+```
+
+### Danger Zone (For Destructive Actions)
+
+```typescript
+import { Card, CardHeader, CardTitle, CardContent } from '@kit/ui/card';
+
+<Card className="border-destructive">
+  <CardHeader>
+    <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p className="text-sm text-muted-foreground mb-4">
+      Esta acción no se puede deshacer.
+    </p>
+    <Button variant="destructive">Eliminar</Button>
+  </CardContent>
+</Card>
 ```
 
 ### Component Props
@@ -422,10 +551,15 @@ interface FeatureCardProps {
 | Form, FormField, FormItem, FormLabel, FormControl, FormMessage | @kit/ui/form | Forms |
 | Input | @kit/ui/input | Text fields |
 | Select | @kit/ui/select | Dropdowns |
-| Card, CardHeader, CardContent | @kit/ui/card | Display |
+| Card, CardHeader, CardContent, CardTitle | @kit/ui/card | Display, Danger Zone |
 | Sheet | @kit/ui/sheet | Create/Edit modals |
 | AlertDialog | @kit/ui/alert-dialog | Delete confirmation |
 | DataTable | @kit/ui/enhanced-data-table | List with sorting |
+| Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator | @kit/ui/breadcrumb | Navigation |
+| Skeleton | @kit/ui/skeleton | Loading states |
+| Table, TableRow, TableCell | @kit/ui/table | Empty states |
+| Badge | @kit/ui/badge | Status indicators |
+| PageHeader | @kit/ui/page-header | Page titles with actions |
 
 ## Implementation Checklist (Ralph-Ready)
 
@@ -441,10 +575,13 @@ interface FeatureCardProps {
 | 8 | Create loader | `_lib/server/features-page.loader.ts` | 5 | `pnpm typecheck` |
 | 9 | Create server actions | `_lib/server/feature-server-actions.ts` | 5,7 | `pnpm typecheck` |
 | 10 | Create list page | `page.tsx` | 8 | `pnpm typecheck` |
-| 11 | Create detail page | `[id]/page.tsx` | 8 | `pnpm typecheck` |
-| 12 | Create form component | `_components/feature-form.tsx` | 7,9 | `pnpm typecheck` |
-| 13 | Create list component | `_components/features-list.tsx` | - | `pnpm typecheck` |
-| 14 | Final verification | - | all | `pnpm typecheck && pnpm lint` |
+| 11 | Create loading skeleton | `loading.tsx` | - | `test -f apps/web/app/home/[account]/features/loading.tsx` |
+| 12 | Create detail page | `[id]/page.tsx` | 8 | `pnpm typecheck` |
+| 13 | Create form component | `_components/feature-form.tsx` | 7,9 | `pnpm typecheck` |
+| 14 | Create list component (with empty state) | `_components/features-list.tsx` | - | `pnpm typecheck` |
+| 15 | Add breadcrumbs to pages | `page.tsx`, `[id]/page.tsx` | 10,12 | `grep -q "Breadcrumb" apps/web/app/home/[account]/features/page.tsx` |
+| 16 | Add permission checks (if team) | `_components/*.tsx` | 13,14 | `pnpm typecheck` |
+| 17 | Final verification | - | all | `pnpm typecheck && pnpm lint` |
 
 ## Completion Criteria
 
@@ -454,12 +591,16 @@ interface FeatureCardProps {
 # Files exist
 test -f apps/web/supabase/schemas/XX-feature.sql
 test -f apps/web/app/home/[account]/features/page.tsx
+test -f apps/web/app/home/[account]/features/loading.tsx
 test -f apps/web/app/home/[account]/features/_lib/schemas/feature.schema.ts
 test -f apps/web/app/home/[account]/features/_lib/server/features-page.loader.ts
 test -f apps/web/app/home/[account]/features/_lib/server/feature-server-actions.ts
 
 # Types include new table
 grep -q "features" packages/supabase/src/database.types.ts
+
+# UI patterns present
+grep -q "Breadcrumb" apps/web/app/home/[account]/features/page.tsx
 
 # No errors
 pnpm typecheck

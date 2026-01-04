@@ -4,6 +4,70 @@ Registro de mejoras basadas en testing real y consolidación de patrones MakerKi
 
 ---
 
+## [1.6.0] - 2026-01-04
+
+### Cambio de Filosofía (BREAKING CHANGE)
+
+**ANTES:** Blueprint = Código copy-paste ready
+**AHORA:** Blueprint = Mapa de Contexto para trabajo autónomo
+
+El blueprint ya NO genera código completo para copiar. En su lugar, genera:
+1. **Qué hacer** - Specs de la feature
+2. **Qué leer** - Archivos específicos a estudiar
+3. **Qué existe** - Funciones/componentes verificados con MCP
+4. **Patrones de referencia** - Features existentes para aprender
+5. **Criterios de éxito** - Cuándo está completo
+
+### Cambios en makerkit-architect.md
+
+**Eliminado:**
+- Código SQL completo para copiar
+- Código TypeScript completo para copiar
+- Checklist rígido paso a paso
+- Verify commands por cada paso
+- estado.md (Opus trackea su propio progreso)
+
+**Agregado:**
+- Sección "Qué Leer Antes de Codificar"
+- Sección "Qué Existe (Verificado con MCP)"
+- Feature de referencia para estudiar
+- Nuevo prompt para Ralph con libertad total
+- Ejemplos de Good vs Bad output
+
+### Nuevo Prompt para Ralph
+
+```
+/ralph-loop "Implementa la feature 'X' para MakerKit.
+
+LEE PRIMERO:
+1. El blueprint - tu mapa de contexto
+2. Los archivos CLAUDE.md que indica
+3. La feature de referencia
+
+TU PROCESO (libertad total):
+1. Estudia el código existente
+2. Planifica tu approach
+3. Implementa por capas: DB → Server → UI
+4. Verifica con pnpm typecheck
+5. Itera hasta que funcione
+
+El blueprint es CONTEXTO, no código para copiar.
+<promise>FEATURE_COMPLETE</promise>
+" --max-iterations 30
+```
+
+### Razón del cambio
+
+Conversación profunda sobre el flujo de desarrollo reveló:
+- El blueprint intentaba ser "copy-paste ready" pero tenía alucinaciones
+- Opus es capaz de planificar y desarrollar autónomamente
+- El contexto es más valioso que el código
+- La libertad produce mejores resultados que la rigidez
+
+**Filosofía nueva:** Dame contexto, no código. Dame referencias, no instrucciones. Dame libertad, no rigidez.
+
+---
+
 ## [1.5.0] - 2026-01-04
 
 ### Agregado

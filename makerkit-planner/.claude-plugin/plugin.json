@@ -1,7 +1,7 @@
 {
   "name": "makerkit-planner",
-  "version": "1.5.0",
-  "description": "Blueprint generator for MakerKit projects. Consumes /ideacion specs, uses MCP tools, and generates Ralph-ready blueprints with estado tracking.",
+  "version": "1.6.0",
+  "description": "Context Map generator for MakerKit projects. Consumes /ideacion specs, uses MCP tools, and generates context maps that guide autonomous feature development.",
   "author": {
     "name": "Membrana Estudio"
   },

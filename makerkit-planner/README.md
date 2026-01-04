@@ -1,17 +1,18 @@
 # MakerKit Planner Plugin
 
-Blueprint generator for MakerKit projects. **Adapts to any project structure.**
+**Context Map generator** for MakerKit projects. Not copy-paste code, but guides for autonomous development.
 
-## Overview
+## Philosophy (v1.6.0)
 
-This plugin provides a structured workflow for designing features in MakerKit projects. It:
+**OLD**: Blueprint = Code to copy-paste → Hallucinations, rigid execution
+**NEW**: Blueprint = Context Map → Opus works autonomously with freedom
 
-1. **Detects or asks** for project structure (specs path, blueprints path)
-2. **Saves configuration** for future runs
-3. **Consumes specs** from `/ideacion` or other sources
-4. **Analyzes codebase** using MCP tools
-5. **Resolves ambiguities** with AskUserQuestion
-6. **Generates blueprints** ready for Ralph Wiggum execution
+The plugin generates:
+1. **Qué hacer** - Feature specs
+2. **Qué leer** - Specific files to study
+3. **Qué existe** - Verified with MCP (no hallucinations)
+4. **Patrones de referencia** - Features to learn from
+5. **Criterios de éxito** - Clear completion criteria
 
 ## Command: `/makerkit-blueprint`
 
@@ -22,7 +23,7 @@ This plugin provides a structured workflow for designing features in MakerKit pr
 ```
 
 The plugin will:
-1. Search for existing specs files
+1. Search for existing specs files (from `/product-spec:ideacion`)
 2. Ask where to save blueprints
 3. Ask about versioning preferences
 4. Save configuration to `.claude/makerkit-planner.local.md`
@@ -33,16 +34,16 @@ The plugin will:
 /makerkit-blueprint
 ```
 
-Uses saved configuration. Detects new specs and generates blueprints.
+Uses saved configuration. Detects new specs and generates Context Maps.
 
 ### Workflow Phases
 
 ```
 Phase 0: Project Context Detection
-├── Check for saved config (.claude/makerkit-planner.local.md)
+├── Check for saved config
 ├── Detect existing specs and blueprints
 ├── Ask user for missing configuration
-└── Save configuration for next time
+└── Save configuration
 
 Phase 1: Specs Loading & Feature Selection
 ├── Read specs from configured path
@@ -52,103 +53,106 @@ Phase 1: Specs Loading & Feature Selection
 
 Phase 2: MCP Analysis
 ├── Validate MCP connection
-├── Analyze database structure
-├── Find reference features
-└── Read CLAUDE.md patterns
+├── Analyze database structure (get_database_summary)
+├── Find reference features (find_complete_features)
+└── Verify what exists (no assumptions)
 
 Phase 3: Clarifying Questions (Per Feature)
-├── Account type?
+├── Account type? (Team/Personal)
 ├── Estados?
-├── Borrado?
+├── Borrado? (Soft/Hard delete)
 ├── Permisos?
 └── UI Layout?
 
-Phase 4: Blueprint Generation
+Phase 4: Context Map Generation
 ├── Generate inventory (if needed)
-├── Generate BLUEPRINT.md per feature
-└── Generate estado.md per feature
+└── Generate BLUEPRINT.md per feature (Context Map, NOT code)
 
 Phase 5: Summary & Next Steps
 ├── Show generated files
-├── Provide Ralph commands
+├── Provide Ralph commands (with autonomy)
 └── Offer to start implementation
 ```
 
-## Configuration
+## Output: Context Map (NOT code)
 
-Saved at `.claude/makerkit-planner.local.md`:
+```markdown
+# [Feature] Context Map
 
-```yaml
----
-specs_path: "docs/producto"
-blueprints_path: "docs/build"
-use_versions: true
-current_version: "v1.0"
----
+## 1. Tu Misión
+[What to implement]
+
+## 2. Qué Leer Antes de Codificar
+- CLAUDE.md files to study
+- Feature de referencia (ESTUDIA ESTO)
+
+## 3. Qué Existe (Verificado con MCP)
+- Funciones RLS disponibles
+- Imports verificados
+- Componentes UI
+
+## 4. Estructura de Archivos a Crear
+[Structure, NOT code]
+
+## 5. Patrones a Seguir
+[Guidelines, NOT code to copy]
+
+## 6. Criterios de Éxito
+- pnpm typecheck pasa
+- pnpm lint pasa
+- Feature funciona
+
+## 7. Prompt para Ralph
+[With full autonomy]
 ```
 
-Edit this file to change paths. Delete it to reconfigure.
+## Integration with Ralph
 
-## Adaptive Structure
+After generating Context Maps, the plugin provides the Ralph command:
 
-The plugin works with **any folder structure**:
+```bash
+/ralph-loop "Implementa la feature '[Feature]' para MakerKit.
 
-```
-# Example 1: With versioning
-docs/producto/v1.0/03-FEATURE-SPECS.md
-docs/build/v1.0/01-feature/BLUEPRINT.md
+LEE PRIMERO:
+1. El blueprint en [path]/BLUEPRINT.md - tu mapa de contexto
+2. Los archivos CLAUDE.md que indica
+3. La feature de referencia
 
-# Example 2: Without versioning
-docs/specs/features.md
-docs/blueprints/feature/BLUEPRINT.md
+TU PROCESO (libertad total):
+1. Estudia el código existente
+2. Planifica tu approach
+3. Implementa por capas: DB → Server → UI
+4. Verifica con pnpm typecheck
+5. Itera hasta que funcione
 
-# Example 3: Custom paths
-my-docs/product/specs.md
-my-docs/architecture/feature/BLUEPRINT.md
+El blueprint es CONTEXTO, no código para copiar.
+<promise>FEATURE_COMPLETE</promise>
+" --max-iterations 30 --completion-promise "FEATURE_COMPLETE"
 ```
 
 ## Agents
 
 ### makerkit-explorer (Yellow)
-
 Analyzes MakerKit codebase using MCP tools.
 
 ### makerkit-architect (Green)
-
-Designs feature architecture. Generates BLUEPRINT.md and estado.md.
+Designs feature architecture. Generates Context Maps (NOT copy-paste code).
 
 ## Skills
 
 ### makerkit-patterns
-
 Quick reference for MakerKit patterns.
-
-### makerkit-docs
-
-Dynamic access to official MakerKit documentation.
-
-## Integration with Ralph
-
-After generating blueprints, the plugin provides the exact Ralph command:
-
-```bash
-/ralph-loop "Implementa [Feature] siguiendo [path]/BLUEPRINT.md.
-Actualiza [path]/estado.md con tu progreso.
-<promise>FEATURE_COMPLETE</promise>"
---max-iterations 20
---completion-promise "FEATURE_COMPLETE"
-```
 
 ## Requirements
 
 - MakerKit MCP server active
 - Project with MakerKit structure
-- Specs from `/ideacion` or manual input
+- Specs from `/product-spec:ideacion` or manual input
 
-## Version
+## Version History
 
-1.1.0
-- Adaptive to any project structure
-- Saves configuration for future runs
-- AskUserQuestion for all ambiguities
-- estado.md generation for Ralph tracking
+- **1.6.0** - Context Maps philosophy (BREAKING CHANGE)
+- **1.5.0** - Pre-generation verification
+- **1.4.0** - UI pattern sections
+- **1.3.0** - Advanced patterns
+- **1.2.0** - Ralph flow integration

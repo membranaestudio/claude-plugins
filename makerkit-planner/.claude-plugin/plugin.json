@@ -1,7 +1,7 @@
 {
   "name": "makerkit-planner",
   "version": "1.6.0",
-  "description": "Context Map generator for MakerKit projects. Consumes /ideacion specs, uses MCP tools, and generates context maps that guide autonomous feature development.",
+  "description": "Context Map generator for MakerKit projects. Consumes /product-spec:ideacion specs, uses MCP tools, and generates context maps that guide autonomous feature development.",
   "author": {
     "name": "Membrana Estudio"
   },

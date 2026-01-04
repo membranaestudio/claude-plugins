@@ -1,18 +1,19 @@
 ---
-description: Generate architecture blueprint for MakerKit features using MCP analysis
+description: Generate Context Maps for MakerKit features using MCP analysis (consumes /product-spec:ideacion)
 argument-hint: "[feature_name] or leave empty to start workflow"
 ---
 
 # MakerKit Blueprint Generator
 
-Generate architecture blueprints for MakerKit features. Adapts to any project structure.
+Generate **Context Maps** for MakerKit features. Not copy-paste code, but guides for autonomous development.
 
 ## Core Principles
 
-- **Adaptive**: Works with existing structure or creates new one
+- **Context, Not Code**: Generate maps of what to read, not code to copy
 - **AskUserQuestion**: Always clarify before assuming
-- **MCP Analysis**: Use MCP tools for accurate codebase understanding
-- **Ralph-Ready**: Output must be executable without human intervention
+- **MCP Analysis**: Use MCP tools to verify what exists (no hallucinations)
+- **Opus Autonomy**: Let Opus plan, develop, and iterate with freedom
+- **Adaptive**: Works with existing structure or creates new one
 
 ---
 
@@ -56,7 +57,7 @@ Generate architecture blueprints for MakerKit features. Adapts to any project st
      - label: "No, buscar en otro lugar"
        description: "Especificar path diferente"
      - label: "No tengo specs aun"
-       description: "Ejecuta /ideacion primero para generarlos"
+       description: "Ejecuta /product-spec:ideacion primero para generarlos"
    ```
 
    **If no specs found:**
@@ -64,8 +65,8 @@ Generate architecture blueprints for MakerKit features. Adapts to any project st
    question: "No encontre specs de producto. ¿Que hacemos?"
    header: "Specs"
    options:
-     - label: "Ejecutar /ideacion primero"
-       description: "Generar specs de producto con el plugin de ideacion"
+     - label: "Ejecutar /product-spec:ideacion primero"
+       description: "Generar specs de producto con el plugin product-spec"
      - label: "Tengo specs en otro lugar"
        description: "Especificar path manualmente"
      - label: "Crear feature sin specs"
@@ -307,48 +308,42 @@ Use `makerkit-architect` agent for each feature.
 
 Output at: `[blueprints_path]/[version]/XX-[feature]/BLUEPRINT.md`
 
-Structure:
+Structure (Context Map - NOT copy-paste code):
 ```markdown
-# [Feature] Architecture Blueprint
+# [Feature] Context Map
 
-## Specs Input
+> Generated: [date]
 > Source: [specs_path]
-> Feature: [name]
 
-## Questions Resolved
-| Question | Answer | Source |
+## 1. Tu Misión
+[What to implement - specs summary]
 
-## Context
-- Inventory: [relative path]
-- MCP tools used: [list]
+## 2. Qué Leer Antes de Codificar
+- CLAUDE.md files to study
+- Feature de referencia (ESTUDIA ESTO)
 
-## Requirements Summary
-| Aspect | Decision |
+## 3. Qué Existe (Verificado con MCP)
+- Funciones RLS disponibles
+- Imports verificados
+- Componentes UI disponibles
 
-## Database Layer
-[Complete SQL]
+## 4. Estructura de Archivos a Crear
+[File structure, NOT code]
 
-## Server Layer
-[Zod, Actions, Loaders]
+## 5. Patrones a Seguir
+[Guidelines, NOT code to copy]
 
-## UI Layer
-[Routes, Components]
+## 6. Criterios de Éxito
+- pnpm typecheck pasa
+- pnpm lint pasa
+- Feature funciona
 
-## Implementation Checklist
-| # | Task | File | Verify Command |
-
-## Completion Criteria
-[Commands that must pass]
-
-## Ralph Command
-[Ready-to-execute command with correct paths]
+## 7. Prompt para Ralph
+[Ready-to-execute with correct paths]
 ```
 
-### 4.3 Generate Estado per Feature
-
-Use template from `${CLAUDE_PLUGIN_ROOT}/templates/estado.md`
-
-Output at: `[blueprints_path]/[version]/XX-[feature]/estado.md`
+**IMPORTANT**: The blueprint is a CONTEXT MAP, not copy-paste code.
+Opus reads it, studies the references, and implements autonomously.
 
 ---
 
@@ -358,20 +353,33 @@ Output at: `[blueprints_path]/[version]/XX-[feature]/estado.md`
 
 1. **Present generation summary**:
    ```
-   Blueprints generados:
+   Context Maps generados:
 
    1. [blueprints_path]/[version]/00-INVENTARIO.md
-   2. [blueprints_path]/[version]/01-[feature]/
-      ├── BLUEPRINT.md
-      └── estado.md
+   2. [blueprints_path]/[version]/01-[feature]/BLUEPRINT.md
    ...
    ```
 
 2. **Provide Ralph commands** with correct paths:
    ```bash
-   /ralph-loop "Implementa [Feature] siguiendo [path]/BLUEPRINT.md..."
-   --max-iterations 30
-   --completion-promise "FEATURE_COMPLETE"
+   /ralph-loop "Implementa la feature '[Feature]' para MakerKit.
+
+   LEE PRIMERO:
+   1. El blueprint en [path]/BLUEPRINT.md - tu mapa de contexto
+   2. Los archivos CLAUDE.md que indica el blueprint
+   3. La feature de referencia que indica el blueprint
+
+   TU PROCESO (libertad total):
+   1. Estudia el código existente
+   2. Planifica tu approach
+   3. Implementa por capas: DB → Server → UI
+   4. Verifica con pnpm typecheck después de cada parte
+   5. Itera hasta que funcione
+
+   El blueprint es CONTEXTO, no código para copiar.
+   Cuando los criterios de éxito se cumplan:
+   <promise>FEATURE_COMPLETE</promise>
+   " --max-iterations 30 --completion-promise "FEATURE_COMPLETE"
    ```
 
 3. **Offer next action**:
@@ -406,7 +414,7 @@ updated: "2026-01-03"
 # MakerKit Planner - Project Configuration
 
 ## Paths
-- **Specs**: `docs/producto/` (output de /ideacion)
+- **Specs**: `docs/producto/` (output de /product-spec:ideacion)
 - **Blueprints**: `docs/build/` (output de /makerkit-blueprint)
 
 ## Version

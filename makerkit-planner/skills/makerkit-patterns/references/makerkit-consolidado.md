@@ -404,16 +404,19 @@ VALUES
 
 ---
 
-## 14. Errores Comunes
+## 14. Verificación Pre-Generación
 
-| Error | Corrección |
-|-------|------------|
-| `is_team_member()` en RLS | Usar `has_role_on_account(account_id)` |
-| UUID placeholder en seeds | Usar UUIDs reales de seed.sql existente |
-| `use(params)` en async | Usar `await params` |
-| Olvidar typegen | Siempre ejecutar después de reset |
-| diff para enums | Agregar permisos manualmente |
-| GRANT sin REVOKE | Siempre REVOKE ALL primero |
+**SIEMPRE verificar antes de usar:**
+
+| Qué Verificar | Herramienta | Cómo |
+|---------------|-------------|------|
+| Package exports | Grep | `pattern="exports" path="packages/.../package.json"` |
+| Funciones DB | MCP | `search_database_functions({query: "nombre"})` |
+| Componentes UI | MCP | `components_search({query: "nombre"})` |
+| Campos de tabla | MCP | `get_table_info({tableName: "nombre"})` |
+| RLS válido | MCP | `validate_rls_policies({table: "nombre"})` |
+
+**Regla de oro:** Si no puedes verificar que existe, no lo uses.
 
 ---
 
@@ -1288,24 +1291,96 @@ export const createFeature = enhanceAction(
 
 > Mostrar/ocultar UI según permisos del usuario.
 
-### Hook de Workspace
+### Pattern en Server Components (RECOMENDADO)
 
 ```typescript
-// Obtener permisos del contexto
+// page.tsx - verificar permisos server-side
+
+// IMPORTANTE: loadTeamWorkspace es un archivo LOCAL, no un export de package
+import { loadTeamWorkspace } from '~/home/[account]/_lib/server/team-account-workspace.loader';
+
+export default async function SettingsPage({ params }: Props) {
+  const { account: accountSlug } = await params;
+
+  // loadTeamWorkspace retorna: { account, accounts, user }
+  // account viene del RPC team_account_workspace e incluye:
+  //   - role: string
+  //   - permissions: app_permissions[]
+  const { account, user } = await loadTeamWorkspace(accountSlug);
+
+  // CORRECTO: permissions está en account, no en workspace
+  const canManage = account.permissions?.includes('settings.manage') ?? false;
+  const isOwner = account.role === 'owner';
+
+  if (!canManage) {
+    return (
+      <Alert variant="warning">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Sin permisos</AlertTitle>
+        <AlertDescription>
+          No tienes permisos para gestionar esta sección.
+          Contacta al owner del equipo.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  // Pasar canManage como prop a componentes client
+  return <SettingsForm canManage={canManage} isOwner={isOwner} />;
+}
+```
+
+### Alternativa: Usar API Directamente
+
+```typescript
+// Si no quieres usar el loader local
+import { createTeamAccountsApi } from '@kit/team-accounts/api';
+import { getSupabaseServerClient } from '@kit/supabase/server-client';
+
+export default async function Page({ params }: Props) {
+  const { account: slug } = await params;
+  const client = getSupabaseServerClient();
+  const api = createTeamAccountsApi(client);
+
+  // Obtener workspace
+  const { data: workspace } = await api.getAccountWorkspace(slug);
+  const account = workspace?.account;
+
+  // Verificar permisos con RPC (más preciso)
+  const { data: user } = await client.auth.getUser();
+  const canManage = user?.user ? await api.hasPermission({
+    accountId: account.id,
+    userId: user.user.id,
+    permission: 'settings.manage'
+  }) : false;
+
+  return <SettingsForm canManage={canManage} />;
+}
+```
+
+### Hook de Workspace (Solo Client Components)
+
+```typescript
+'use client';
+
+// useTeamAccountWorkspace es para COMPONENTES CLIENT
+// Retorna el contexto provisto por TeamAccountWorkspaceContextProvider
 import { useTeamAccountWorkspace } from '@kit/team-accounts/hooks/use-team-account-workspace';
 
-function FeatureSettings() {
-  const { permissions, role } = useTeamAccountWorkspace();
+function FeatureSettings({ canManage }: { canManage: boolean }) {
+  // El hook da acceso al workspace context
+  const { account } = useTeamAccountWorkspace();
 
-  const canManage = permissions.includes('settings.manage');
-  const isOwner = role === 'owner';
+  // NOTA: Para permisos, preferir pasarlos como props desde el server
+  // El account del hook tiene: role, permissions, etc.
+  const isOwner = account.role === 'owner';
 
   return (
     <div>
       {/* Visible para todos */}
       <FeaturesList />
 
-      {/* Solo visible si tiene permiso */}
+      {/* Solo visible si tiene permiso (pasado desde server) */}
       {canManage && (
         <CreateFeatureButton />
       )}
@@ -1321,38 +1396,6 @@ function FeatureSettings() {
 }
 ```
 
-### Pattern en Server Components
-
-```typescript
-// page.tsx - verificar permisos server-side
-
-import { loadTeamWorkspace } from '@kit/team-accounts/server';
-
-export default async function SettingsPage({ params }: Props) {
-  const { account } = await params;
-  const client = getSupabaseServerClient();
-
-  const workspace = await loadTeamWorkspace(client, account);
-
-  const canManage = workspace.permissions.includes('settings.manage');
-
-  if (!canManage) {
-    return (
-      <Alert variant="warning">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Sin permisos</AlertTitle>
-        <AlertDescription>
-          No tienes permisos para gestionar esta sección.
-          Contacta al owner del equipo.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return <SettingsForm />;
-}
-```
-
 ### Permisos Disponibles
 
 ```typescript
@@ -1365,6 +1408,20 @@ type AppPermission =
 
 // Agregar permisos custom al enum:
 // ALTER TYPE app_permissions ADD VALUE 'features.manage';
+```
+
+### Verificación Pre-Uso
+
+**Antes de usar imports de workspace, verificar con Grep:**
+```bash
+Grep: pattern="exports" path="packages/features/team-accounts/package.json"
+# Exports disponibles: "./api", "./components", "./hooks/*"
+```
+
+**Antes de acceder a campos, verificar con MCP:**
+```
+search_database_functions({query: "team_account_workspace"})
+# Campos disponibles: id, name, slug, role, permissions[]
 ```
 
 ---

@@ -4,6 +4,49 @@ Registro de mejoras basadas en testing real y consolidación de patrones MakerKi
 
 ---
 
+## [1.5.0] - 2026-01-04
+
+### Agregado
+
+**Pre-Generation Verification Workflow en makerkit-architect.md:**
+
+Nuevo workflow obligatorio ANTES de generar código que previene alucinaciones:
+
+| Paso | Verificación | Herramienta |
+|------|--------------|-------------|
+| 1 | Verificar exports de packages | Grep en package.json |
+| 2 | Confirmar funciones RLS | search_database_functions() |
+| 3 | Validar componentes UI | components_search() |
+| 4 | Verificar imports locales vs packages | Glob + Read |
+
+**Workspace Pattern Correcto (Sección 31 reescrita):**
+
+```typescript
+// CORRECTO - Import LOCAL, no de package
+import { loadTeamWorkspace } from '~/home/[account]/_lib/server/team-account-workspace.loader';
+
+const { account, user } = await loadTeamWorkspace(accountSlug);
+const canManage = account.permissions?.includes('settings.manage') ?? false;
+```
+
+**Cambios en makerkit-consolidado.md:**
+- Sección 14: Renombrada de "Errores Comunes" → "Verificación Pre-Generación"
+- Sección 31: Completamente reescrita con patrones correctos de workspace/permisos
+
+### Razón del cambio
+
+Validación de blueprints v1.4.0 reveló alucinaciones:
+- `getTeamAccountWorkspace` de `@kit/team-accounts/workspace` (NO EXISTE)
+- `loadTeamWorkspace` de `@kit/team-accounts/server` (NO EXISTE - es archivo LOCAL)
+- `workspace.permissions.includes()` (INCORRECTO - es `account.permissions`)
+
+**Enfoque nuevo:** Verificar ANTES de generar, no documentar errores después.
+
+### Roadmap actualizado
+- [x] Validación de blueprints contra MCP antes de Ralph (IMPLEMENTADO)
+
+---
+
 ## [1.4.0] - 2026-01-04
 
 ### Agregado

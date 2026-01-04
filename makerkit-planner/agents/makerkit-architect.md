@@ -440,16 +440,37 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 
 ### Permission-Based Rendering
 
-For team account features, check permissions before rendering actions:
+For team account features, check permissions server-side and pass as props:
 
+**Server Component (page.tsx):**
 ```typescript
-import { useTeamAccountWorkspace } from '@kit/team-accounts/hooks/use-team-account-workspace';
+// IMPORTANTE: loadTeamWorkspace es archivo LOCAL, no export de package
+import { loadTeamWorkspace } from '~/home/[account]/_lib/server/team-account-workspace.loader';
 
-function FeatureActions() {
-  const { permissions, role } = useTeamAccountWorkspace();
-  const canManage = permissions.includes('settings.manage');
-  const isOwner = role === 'owner';
+export default async function FeaturesPage({ params }: Props) {
+  const { account: slug } = await params;
 
+  // loadTeamWorkspace retorna { account, accounts, user }
+  const { account } = await loadTeamWorkspace(slug);
+
+  // permissions está en account (del RPC team_account_workspace)
+  const canManage = account.permissions?.includes('settings.manage') ?? false;
+  const isOwner = account.role === 'owner';
+
+  return <FeatureActions canManage={canManage} isOwner={isOwner} />;
+}
+```
+
+**Client Component:**
+```typescript
+'use client';
+
+interface FeatureActionsProps {
+  canManage: boolean;
+  isOwner: boolean;
+}
+
+function FeatureActions({ canManage, isOwner }: FeatureActionsProps) {
   return (
     <>
       {canManage && <CreateFeatureButton />}
@@ -457,6 +478,19 @@ function FeatureActions() {
     </>
   );
 }
+```
+
+**ERRORES COMUNES - NO HACER:**
+```typescript
+// ❌ INCORRECTO: Este import NO EXISTE
+import { loadTeamWorkspace } from '@kit/team-accounts/server';
+import { getTeamAccountWorkspace } from '@kit/team-accounts/workspace';
+
+// ❌ INCORRECTO: permissions no está en workspace directamente
+workspace.permissions.includes('...');
+
+// ✅ CORRECTO: permissions está en account
+account.permissions?.includes('...');
 ```
 
 ### Loading State (Required)
@@ -652,18 +686,74 @@ After generating BLUEPRINT.md, also generate `estado.md` using the template from
 8. **Account type is critical** - Affects all RLS policies
 9. **Generate estado.md** - Ralph needs it for progress tracking
 
-## Red Flags - STOP and Verify
+## Pre-Generation Verification (CRITICAL)
 
-If you catch yourself doing any of these, STOP:
+**ANTES de escribir cualquier código, VERIFICAR con herramientas:**
 
-| Red Flag | Correct Action |
-|----------|----------------|
-| Writing RLS without checking existing patterns | Run `validate_rls_policies()` on similar table |
-| Assuming FK pattern (user_id vs account_id) | Verify account type with explorer findings |
-| Creating new helper functions | Run `search_database_functions()` first |
-| Guessing component imports | Run `components_search()` to verify |
-| Skipping a CRUD operation | Blueprint MUST have all operations |
-| Not citing specs source | Add Specs Input section |
-| Not documenting questions | Add Questions Resolved section |
+### 1. Verificar Imports de Packages
 
-> **WARNING**: A blueprint with assumptions will fail during Ralph execution. Every technical detail MUST come from MCP tools, not memory or guesses.
+```bash
+# Para @kit/team-accounts - verificar exports disponibles
+Grep: pattern="exports" path="packages/features/team-accounts/package.json"
+
+# Resultado esperado muestra exports reales:
+# "./api", "./components", "./hooks/*", "./webhooks", "./policies"
+```
+
+**Solo usar imports que existen en package.json exports.**
+
+### 2. Verificar Funciones de Workspace
+
+```
+# Usar MCP para verificar funciones disponibles
+search_database_functions({query: "team_account_workspace"})
+
+# Resultado muestra campos disponibles:
+# id, name, slug, role, permissions, etc.
+```
+
+### 3. Verificar Componentes UI
+
+```
+# Antes de usar cualquier componente
+components_search({query: "breadcrumb"})
+components_search({query: "empty-state"})
+```
+
+### 4. Workspace Pattern - ÚNICO CORRECTO
+
+```typescript
+// Para server components, usar el loader LOCAL:
+import { loadTeamWorkspace } from '~/home/[account]/_lib/server/team-account-workspace.loader';
+
+// loadTeamWorkspace retorna: { account, accounts, user }
+// account tiene: id, name, slug, role, permissions[]
+const { account } = await loadTeamWorkspace(accountSlug);
+const canManage = account.permissions?.includes('settings.manage') ?? false;
+```
+
+### 5. API Pattern - Alternativa
+
+```typescript
+// Si necesitas más control, usar la API:
+import { createTeamAccountsApi } from '@kit/team-accounts/api';
+
+const api = createTeamAccountsApi(client);
+const { data } = await api.getAccountWorkspace(slug);
+const canManage = await api.hasPermission({
+  accountId: data.account.id,
+  userId: user.id,
+  permission: 'settings.manage'
+});
+```
+
+## Checklist Pre-Generación
+
+| Verificación | Herramienta | Debe Pasar |
+|--------------|-------------|------------|
+| Package exports existen | `Grep` en package.json | ✅ Export listado |
+| Funciones DB existen | `search_database_functions()` | ✅ Función encontrada |
+| Componentes UI existen | `components_search()` | ✅ Componente encontrado |
+| RLS pattern válido | `validate_rls_policies()` | ✅ Sin warnings |
+
+> **REGLA DE ORO**: Si no puedes verificar que algo existe, NO lo uses en el blueprint.

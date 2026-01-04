@@ -4,6 +4,41 @@ Registro de mejoras basadas en testing real y consolidación de patrones MakerKi
 
 ---
 
+## [1.4.0] - 2026-01-04
+
+### Agregado
+
+**9 UI Pattern Sections en makerkit-consolidado.md (Secciones 28-36):**
+
+| Sección | Pattern | Uso |
+|---------|---------|-----|
+| 28 | Sidebar Navigation | Agregar items al sidebar de navegación |
+| 29 | Breadcrumb Implementation | Breadcrumbs con componentes MakerKit |
+| 30 | Account Context Pattern | Resolver account_id centralizado con cache() |
+| 31 | Permission-Based UI Rendering | Renderizado condicional por permisos/rol |
+| 32 | Table Patterns | Search, filter, empty states, pagination |
+| 33 | Loading States | Skeletons con loading.tsx |
+| 34 | Danger Zone Pattern | Acciones destructivas con confirmación |
+| 35 | Page Layout Patterns | PageHeader consistente |
+| 36 | Blueprint Checklist (Updated) | Verificación completa pre-Ralph |
+
+**Patterns específicos agregados:**
+- `getAccountBySlug()` - Función centralizada con React cache()
+- `useTeamAccountWorkspace()` - Hook para permisos en cliente
+- Empty states informativos con CTA
+- Badge variant maps por tipo de status
+- Loading skeletons para tablas y forms
+
+### Razón del cambio
+
+Análisis de UI real de MakerKit (10-MAKERKIT-UI-EXPLORATION.md) reveló gaps entre
+blueprints generados y patterns de UI establecidos. Estos patterns son genéricos
+de MakerKit, no específicos de ningún proyecto.
+
+Objetivo: Blueprints que incluyan TODA la UI necesaria (navegación, permisos, estados).
+
+---
+
 ## [1.3.0] - 2026-01-03
 
 ### Agregado

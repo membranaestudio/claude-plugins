@@ -1061,4 +1061,758 @@ export const restoreDocumentAction = enhanceAction(
 
 ---
 
-*Quick reference auto-contenido para makerkit-planner plugin v1.3.0*
+---
+
+## 28. Sidebar Navigation Configuration
+
+> Cada feature debe agregar su link al sidebar del team account.
+
+### Archivo de Configuración
+
+```typescript
+// File: apps/web/config/team-account-navigation.config.tsx
+
+import {
+  LayoutDashboard,
+  Settings,
+  Users,
+  CreditCard,
+  Calendar,
+  // Agregar iconos para features nuevas
+} from 'lucide-react';
+
+export const teamAccountNavigationConfig = {
+  // Application Section
+  routes: [
+    {
+      label: 'Dashboard',
+      path: '/home/[account]',
+      Icon: LayoutDashboard,
+    },
+    // AGREGAR FEATURES AQUÍ:
+    // {
+    //   label: 'Mi Feature',
+    //   path: '/home/[account]/mi-feature',
+    //   Icon: IconName,
+    // },
+  ],
+
+  // Settings Section
+  settings: [
+    {
+      label: 'Settings',
+      path: '/home/[account]/settings',
+      Icon: Settings,
+    },
+    {
+      label: 'Members',
+      path: '/home/[account]/members',
+      Icon: Users,
+    },
+    {
+      label: 'Billing',
+      path: '/home/[account]/billing',
+      Icon: CreditCard,
+    },
+  ],
+};
+```
+
+### Checklist para Agregar Feature
+
+```markdown
+- [ ] Importar icono de `lucide-react`
+- [ ] Agregar entrada en `routes` o `settings` según tipo
+- [ ] Verificar que el path coincida con la carpeta de la feature
+- [ ] Reiniciar dev server para ver cambios
+```
+
+---
+
+## 29. Breadcrumb Implementation
+
+> Navegación jerárquica consistente en todas las páginas.
+
+### Pattern Estándar
+
+```typescript
+// apps/web/app/home/[account]/features/page.tsx
+
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@kit/ui/breadcrumb';
+
+interface Props {
+  params: Promise<{ account: string }>;
+}
+
+export default async function FeaturesPage({ params }: Props) {
+  const { account } = await params;
+
+  return (
+    <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href={`/home/${account}`}>
+              Home
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Features</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* Page Content */}
+      <PageHeader title="Features" description="Manage your features" />
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+### Breadcrumb con Subpágina
+
+```typescript
+// apps/web/app/home/[account]/features/[id]/page.tsx
+
+<Breadcrumb>
+  <BreadcrumbList>
+    <BreadcrumbItem>
+      <BreadcrumbLink href={`/home/${account}`}>Home</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbLink href={`/home/${account}/features`}>Features</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbPage>{feature.name}</BreadcrumbPage>
+    </BreadcrumbItem>
+  </BreadcrumbList>
+</Breadcrumb>
+```
+
+---
+
+## 30. Account Context Pattern
+
+> Resolver account_id de slug de forma centralizada.
+
+### Helper Centralizado
+
+```typescript
+// File: apps/web/lib/server/account.ts
+
+import 'server-only';
+
+import { cache } from 'react';
+import { getSupabaseServerClient } from '@kit/supabase/server-client';
+
+export const getAccountBySlug = cache(async (slug: string) => {
+  const client = getSupabaseServerClient();
+
+  const { data, error } = await client
+    .from('accounts')
+    .select('id, name, slug, picture_url')
+    .eq('slug', slug)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Account not found: ${slug}`);
+  }
+
+  return data;
+});
+
+// Atajo para solo obtener ID
+export const getAccountIdBySlug = cache(async (slug: string) => {
+  const account = await getAccountBySlug(slug);
+  return account.id;
+});
+```
+
+### Uso en Loaders
+
+```typescript
+// _lib/server/features.loader.ts
+
+import 'server-only';
+import { getAccountBySlug } from '~/lib/server/account';
+
+export async function loadFeaturesPageData(slug: string) {
+  const client = getSupabaseServerClient();
+  const account = await getAccountBySlug(slug);  // Centralizado
+
+  const { data, error } = await client
+    .from('features')
+    .select('*')
+    .eq('account_id', account.id);
+
+  if (error) throw error;
+  return { account, features: data ?? [] };
+}
+```
+
+### Uso en Server Actions
+
+```typescript
+// _lib/server/features.actions.ts
+
+'use server';
+
+import { getAccountIdBySlug } from '~/lib/server/account';
+
+export const createFeature = enhanceAction(
+  async (data, { account }) => {
+    const client = getSupabaseServerClient();
+    const accountId = await getAccountIdBySlug(account);  // Centralizado
+
+    // ... rest of action
+  },
+  { schema: CreateFeatureSchema }
+);
+```
+
+---
+
+## 31. Permission-Based UI Rendering
+
+> Mostrar/ocultar UI según permisos del usuario.
+
+### Hook de Workspace
+
+```typescript
+// Obtener permisos del contexto
+import { useTeamAccountWorkspace } from '@kit/team-accounts/hooks/use-team-account-workspace';
+
+function FeatureSettings() {
+  const { permissions, role } = useTeamAccountWorkspace();
+
+  const canManage = permissions.includes('settings.manage');
+  const isOwner = role === 'owner';
+
+  return (
+    <div>
+      {/* Visible para todos */}
+      <FeaturesList />
+
+      {/* Solo visible si tiene permiso */}
+      {canManage && (
+        <CreateFeatureButton />
+      )}
+
+      {/* Solo visible para owner */}
+      {isOwner && (
+        <DangerZone>
+          <DeleteFeatureButton />
+        </DangerZone>
+      )}
+    </div>
+  );
+}
+```
+
+### Pattern en Server Components
+
+```typescript
+// page.tsx - verificar permisos server-side
+
+import { loadTeamWorkspace } from '@kit/team-accounts/server';
+
+export default async function SettingsPage({ params }: Props) {
+  const { account } = await params;
+  const client = getSupabaseServerClient();
+
+  const workspace = await loadTeamWorkspace(client, account);
+
+  const canManage = workspace.permissions.includes('settings.manage');
+
+  if (!canManage) {
+    return (
+      <Alert variant="warning">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Sin permisos</AlertTitle>
+        <AlertDescription>
+          No tienes permisos para gestionar esta sección.
+          Contacta al owner del equipo.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return <SettingsForm />;
+}
+```
+
+### Permisos Disponibles
+
+```typescript
+type AppPermission =
+  | 'roles.manage'
+  | 'billing.manage'
+  | 'settings.manage'
+  | 'members.manage'
+  | 'invites.manage';
+
+// Agregar permisos custom al enum:
+// ALTER TYPE app_permissions ADD VALUE 'features.manage';
+```
+
+---
+
+## 32. Table Patterns
+
+> Search, filter, pagination, y empty states.
+
+### Table con Search y Filter
+
+```typescript
+'use client';
+
+import { useState, useMemo } from 'react';
+import { Input } from '@kit/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kit/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@kit/ui/table';
+
+interface DataTableProps<T> {
+  data: T[];
+  columns: { key: keyof T; label: string }[];
+  searchKey: keyof T;
+  filterKey?: keyof T;
+  filterOptions?: { value: string; label: string }[];
+  emptyMessage?: string;
+}
+
+export function DataTable<T extends Record<string, any>>({
+  data,
+  columns,
+  searchKey,
+  filterKey,
+  filterOptions,
+  emptyMessage = 'No hay datos disponibles',
+}: DataTableProps<T>) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      // Search
+      const matchesSearch = String(item[searchKey])
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      // Filter
+      const matchesFilter = filter === 'all' ||
+        (filterKey && item[filterKey] === filter);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [data, search, filter, searchKey, filterKey]);
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex items-center gap-4">
+        <Input
+          placeholder="Buscar..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
+        {filterKey && filterOptions && (
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filtrar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {filterOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Table */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((col) => (
+              <TableHead key={String(col.key)}>{col.label}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredData.length > 0 ? (
+            filteredData.map((item, i) => (
+              <TableRow key={i}>
+                {columns.map((col) => (
+                  <TableCell key={String(col.key)}>
+                    {String(item[col.key])}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length}
+                className="text-center py-8 text-muted-foreground"
+              >
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+```
+
+### Empty State Component
+
+```typescript
+import { LucideIcon } from 'lucide-react';
+import { Button } from '@kit/ui/button';
+
+interface EmptyStateProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <Icon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+      <h3 className="text-lg font-medium">{title}</h3>
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm">{description}</p>
+      {action && (
+        <Button onClick={action.onClick} className="mt-4">
+          {action.label}
+        </Button>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## 33. Loading States
+
+> Skeleton loaders mientras se carga contenido.
+
+### loading.tsx Pattern
+
+```typescript
+// apps/web/app/home/[account]/features/loading.tsx
+
+import { Skeleton } from '@kit/ui/skeleton';
+
+export default function FeaturesLoading() {
+  return (
+    <div className="space-y-6">
+      {/* Breadcrumb skeleton */}
+      <Skeleton className="h-4 w-48" />
+
+      {/* Header skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+
+      {/* Controls skeleton */}
+      <div className="flex gap-4">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+
+      {/* Table skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-12 w-full" />
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### Card Grid Loading
+
+```typescript
+// Para vistas de cards
+export default function CardsLoading() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="rounded-lg border p-4 space-y-3">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
+## 34. Danger Zone Pattern
+
+> Sección visual para acciones destructivas.
+
+### Component
+
+```typescript
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@kit/ui/card';
+import { Button } from '@kit/ui/button';
+import { AlertTriangle } from 'lucide-react';
+
+interface DangerZoneProps {
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+}
+
+export function DangerZone({
+  title = 'Zona de Peligro',
+  description = 'Las siguientes acciones son irreversibles.',
+  children,
+}: DangerZoneProps) {
+  return (
+    <Card className="border-destructive">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="h-5 w-5" />
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+// Uso:
+<DangerZone>
+  <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">
+      Esta acción eliminará permanentemente todos los datos asociados.
+    </p>
+    <Button variant="destructive" onClick={handleDelete}>
+      Eliminar permanentemente
+    </Button>
+  </div>
+</DangerZone>
+```
+
+### Delete Confirmation Pattern
+
+```typescript
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@kit/ui/alert-dialog';
+
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="destructive">Eliminar</Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+      <AlertDialogDescription>
+        Esta acción no se puede deshacer. Se eliminarán permanentemente
+        todos los datos asociados.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+      <AlertDialogAction onClick={handleConfirmDelete}>
+        Sí, eliminar
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
+
+---
+
+## 35. Page Layout Patterns
+
+> Estructura consistente de páginas.
+
+### PageHeader Component
+
+```typescript
+// Usar el componente existente de @kit/ui
+import { PageHeader } from '@kit/ui/page-header';
+
+<PageHeader
+  title="Features"
+  description="Manage your features and configurations"
+>
+  {/* Action button (top right) */}
+  <Button>
+    <Plus className="h-4 w-4 mr-2" />
+    Create Feature
+  </Button>
+</PageHeader>
+```
+
+### Standard Page Layout
+
+```typescript
+// Template de página estándar
+export default async function FeaturePage({ params }: Props) {
+  const { account } = await params;
+  const { account: accountData, features } = await loadPageData(account);
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href={`/home/${account}`}>Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Features</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* 2. Page Header */}
+      <PageHeader
+        title="Features"
+        description="Manage your features"
+      >
+        <CreateFeatureDialog accountSlug={account} />
+      </PageHeader>
+
+      {/* 3. Filters/Controls (optional) */}
+      <div className="flex items-center gap-4">
+        <Input placeholder="Search..." className="max-w-sm" />
+        <StatusFilter />
+      </div>
+
+      {/* 4. Main Content */}
+      <FeaturesTable data={features} accountSlug={account} />
+
+      {/* 5. Danger Zone (if applicable) */}
+      {isOwner && (
+        <DangerZone>
+          <DeleteAllButton />
+        </DangerZone>
+      )}
+    </div>
+  );
+}
+```
+
+### Status Badge Variants
+
+```typescript
+import { Badge } from '@kit/ui/badge';
+
+// Mapa de variantes por status
+const STATUS_VARIANTS = {
+  // Estados generales
+  active: 'default',
+  inactive: 'secondary',
+  pending: 'outline',
+  error: 'destructive',
+
+  // Estados de pago
+  confirmed: 'default',
+  detected: 'secondary',
+  overdue: 'destructive',
+
+  // Estados de tarea
+  draft: 'outline',
+  in_progress: 'secondary',
+  completed: 'default',
+  cancelled: 'destructive',
+} as const;
+
+// Uso
+<Badge variant={STATUS_VARIANTS[status]}>
+  {status}
+</Badge>
+```
+
+---
+
+## 36. Blueprint Generation Checklist (Updated)
+
+### Pre-Generation
+
+- [ ] ¿Qué pattern de DB? (18-25)
+- [ ] ¿Requiere permisos custom?
+- [ ] ¿Dónde va en sidebar? (routes vs settings)
+
+### Blueprint Must Include
+
+- [ ] **Database:** Schema + RLS + Indexes
+- [ ] **Server:** Schemas + Loaders + Actions
+- [ ] **UI:** Breadcrumb + PageHeader + Table/Cards
+- [ ] **Loading:** loading.tsx skeleton
+- [ ] **Permissions:** Conditional rendering
+- [ ] **Navigation:** Sidebar entry
+- [ ] **Empty States:** Para tablas vacías
+- [ ] **Danger Zone:** Si hay acciones destructivas
+
+### Post-Generation Verify
+
+- [ ] Sidebar navigation added
+- [ ] Breadcrumb implemented
+- [ ] Loading state created
+- [ ] Empty states included
+- [ ] Permission checks in UI
+- [ ] Danger zone if needed
+
+---
+
+*Quick reference auto-contenido para makerkit-planner plugin v1.4.0*
